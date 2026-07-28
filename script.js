@@ -58,12 +58,14 @@ function shiftDatetimeLocal(value, deltaDays) {
 outboundArrivalInput.addEventListener("change", () => {
   const days = Number(daysInput.value);
   if (!outboundArrivalInput.value || !days || days < 1) return;
+  if (returnDepartureInput.value) return;
   returnDepartureInput.value = shiftDatetimeLocal(outboundArrivalInput.value, days - 1);
 });
 
 returnDepartureInput.addEventListener("change", () => {
   const days = Number(daysInput.value);
   if (!returnDepartureInput.value || !days || days < 1) return;
+  if (outboundArrivalInput.value) return;
   outboundArrivalInput.value = shiftDatetimeLocal(returnDepartureInput.value, -(days - 1));
 });
 
