@@ -295,13 +295,31 @@ function syncSliderFromBudget() {
   }
   const pct = budgetToPct(value, budgetEstimateCache);
   budgetLevelSlider.value = pct;
-  budgetLevelLive.textContent = `NT$${value.toLocaleString()}`;
+  setSliderLive(`NT$${value.toLocaleString()}`);
   budgetLevelStatus.textContent = `已依輸入金額同步滑塊位置：${levelLabelForPct(pct)}（低 NT$${Number(
     budgetEstimateCache.low
   ).toLocaleString()} / 中 NT$${Number(budgetEstimateCache.medium).toLocaleString()} / 高 NT$${Number(
     budgetEstimateCache.high
   ).toLocaleString()}）`;
 }
+
+function positionSliderLive() {
+  const min = Number(budgetLevelSlider.min);
+  const max = Number(budgetLevelSlider.max);
+  const val = Number(budgetLevelSlider.value);
+  const pct = (val - min) / (max - min);
+  const thumbWidth = 18;
+  const trackWidth = budgetLevelSlider.offsetWidth;
+  const leftPx = thumbWidth / 2 + pct * (trackWidth - thumbWidth);
+  budgetLevelLive.style.left = `${leftPx}px`;
+}
+
+function setSliderLive(text) {
+  budgetLevelLive.textContent = text;
+  positionSliderLive();
+}
+
+window.addEventListener("resize", positionSliderLive);
 
 function currentTripKey() {
   const destination = document.getElementById("destination").value.trim();
@@ -314,9 +332,9 @@ budgetLevelSlider.addEventListener("input", () => {
   const pct = Number(budgetLevelSlider.value);
   const { key } = currentTripKey();
   if (budgetEstimateCache && budgetEstimateKey === key) {
-    budgetLevelLive.textContent = `NT$${interpolateBudget(pct, budgetEstimateCache).toLocaleString()}`;
+    setSliderLive(`NT$${interpolateBudget(pct, budgetEstimateCache).toLocaleString()}`);
   } else {
-    budgetLevelLive.textContent = levelLabelForPct(pct);
+    setSliderLive(levelLabelForPct(pct));
   }
 });
 
@@ -338,7 +356,7 @@ budgetLevelSlider.addEventListener("change", async () => {
   try {
     if (budgetEstimateKey !== cacheKey || !budgetEstimateCache) {
       budgetLevelStatus.textContent = "AI 估算中...";
-      budgetLevelLive.textContent = "估算中";
+      setSliderLive("估算中");
       budgetEstimateCache = await estimateBudgetLevels(destination, people, days, apiKey);
       budgetEstimateKey = cacheKey;
     }
@@ -346,7 +364,7 @@ budgetLevelSlider.addEventListener("change", async () => {
     const value = interpolateBudget(pct, budgetEstimateCache);
     budgetInput.value = value;
     syncBudgetPerPerson();
-    budgetLevelLive.textContent = `NT$${value.toLocaleString()}`;
+    setSliderLive(`NT$${value.toLocaleString()}`);
     budgetLevelStatus.textContent = `已套用「${levelLabelForPct(pct)}」：NT$${value.toLocaleString()}（低 NT$${Number(
       budgetEstimateCache.low
     ).toLocaleString()} / 中 NT$${Number(budgetEstimateCache.medium).toLocaleString()} / 高 NT$${Number(
