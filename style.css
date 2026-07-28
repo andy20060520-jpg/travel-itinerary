@@ -240,9 +240,9 @@ body {
 }
 
 .settings {
-  margin-top: 20px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
 }
 
 .settings summary {

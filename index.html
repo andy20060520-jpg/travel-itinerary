@@ -13,6 +13,24 @@
 
   <main class="container">
     <section class="panel form-panel">
+      <details class="settings">
+        <summary>API 金鑰設定</summary>
+        <p class="hint">
+          本頁面使用 Google Gemini API（免費額度）直接在瀏覽器呼叫，僅適合本機開發測試。
+          金鑰只會存在你的瀏覽器 localStorage，不會上傳到任何伺服器。
+          正式上線前務必改用後端代理，避免金鑰外洩。
+          <br />還沒有金鑰？到
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
+          免費註冊並建立一組 API Key。
+        </p>
+        <div class="field">
+          <label for="api-key">Google Gemini API Key</label>
+          <input type="password" id="api-key" placeholder="AIza..." />
+        </div>
+        <button type="button" id="save-key-btn">儲存金鑰</button>
+        <span id="key-status" class="key-status"></span>
+      </details>
+
       <form id="trip-form">
         <div class="field">
           <label for="destination">目的地</label>
@@ -110,24 +128,6 @@
 
         <button type="submit" id="submit-btn">產生行程</button>
       </form>
-
-      <details class="settings">
-        <summary>API 金鑰設定</summary>
-        <p class="hint">
-          本頁面使用 Google Gemini API（免費額度）直接在瀏覽器呼叫，僅適合本機開發測試。
-          金鑰只會存在你的瀏覽器 localStorage，不會上傳到任何伺服器。
-          正式上線前務必改用後端代理，避免金鑰外洩。
-          <br />還沒有金鑰？到
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
-          免費註冊並建立一組 API Key。
-        </p>
-        <div class="field">
-          <label for="api-key">Google Gemini API Key</label>
-          <input type="password" id="api-key" placeholder="AIza..." />
-        </div>
-        <button type="button" id="save-key-btn">儲存金鑰</button>
-        <span id="key-status" class="key-status"></span>
-      </details>
     </section>
 
     <section class="panel result-panel">
