@@ -367,17 +367,21 @@ function renderItinerary(data, { people, budget }) {
     const card = document.createElement("div");
     card.className = "day-card";
     const activitiesHtml = day.activities
-      .map(
-        (a) => `
+      .map((a) => {
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          `${data.destination || ""} ${a.name || ""}`
+        )}`;
+        return `
         <div class="activity">
           <div class="time">${a.time || ""}</div>
           <div class="detail">
             <div class="name">${a.name || ""}</div>
             <div class="desc">${a.description || ""}</div>
             <div class="cost">${a.estimatedCost || ""}</div>
+            <a class="maps-link" href="${mapsUrl}" target="_blank" rel="noopener">📍 在 Google Maps 開啟</a>
           </div>
-        </div>`
-      )
+        </div>`;
+      })
       .join("");
 
     card.innerHTML = `
