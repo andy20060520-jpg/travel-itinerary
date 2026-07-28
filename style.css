@@ -201,8 +201,6 @@ body {
 
 .add-spot-btn,
 .remove-spot-btn {
-  flex: 0 0 auto;
-  width: 38px;
   border: 1px solid var(--primary);
   background: white;
   color: var(--primary);
@@ -213,8 +211,17 @@ body {
 }
 
 .remove-spot-btn {
+  flex: 0 0 auto;
+  width: 38px;
   border-color: #e03131;
   color: #e03131;
+}
+
+.add-spot-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
 }
 
 #submit-btn {

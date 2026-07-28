@@ -111,16 +111,13 @@ function createDreamSpotRow() {
   return row;
 }
 
+document.getElementById("add-spot-btn").addEventListener("click", () => {
+  dreamSpotsList.appendChild(createDreamSpotRow());
+});
+
 dreamSpotsList.addEventListener("click", (e) => {
-  if (e.target.classList.contains("add-spot-btn")) {
-    dreamSpotsList.appendChild(createDreamSpotRow());
-  } else if (e.target.classList.contains("remove-spot-btn")) {
-    const row = e.target.closest(".dream-spot-row");
-    if (dreamSpotsList.children.length > 1) {
-      row.remove();
-    } else {
-      row.querySelector("input").value = "";
-    }
+  if (e.target.classList.contains("remove-spot-btn")) {
+    e.target.closest(".dream-spot-row").remove();
   }
 });
 
