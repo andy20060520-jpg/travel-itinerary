@@ -60,10 +60,8 @@
 
         <div class="field">
           <label for="budget-level">預算等級參考（AI 依目的地估算低/中/高，可微調）</label>
-          <div class="slider-row">
-            <input type="range" id="budget-level" min="0" max="100" step="1" value="50" />
-            <span id="budget-level-live" class="slider-live"></span>
-          </div>
+          <div id="budget-level-live" class="slider-live"></div>
+          <input type="range" id="budget-level" min="0" max="100" step="1" value="50" />
           <div class="slider-labels">
             <span>低</span>
             <span>中</span>
