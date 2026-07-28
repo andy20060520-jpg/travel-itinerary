@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>旅遊行程規劃器</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hero">
+    <h1>旅遊行程規劃器</h1>
+    <p>輸入人數、地點、預算、天數，AI 幫你排出完整行程</p>
+  </header>
+
+  <main class="container">
+    <section class="panel form-panel">
+      <form id="trip-form">
+        <div class="field">
+          <label for="destination">目的地</label>
+          <input type="text" id="destination" placeholder="例如：日本東京" required />
+        </div>
+
+        <div class="field">
+          <label for="people">人數</label>
+          <input type="number" id="people" min="1" value="2" required />
+        </div>
+
+        <div class="field">
+          <label for="days">天數</label>
+          <input type="number" id="days" min="1" value="4" required />
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="budget">總預算（新台幣）</label>
+            <input type="number" id="budget" min="0" step="1000" placeholder="例如：50000" required />
+          </div>
+          <div class="field">
+            <label for="budget-per-person">人均預算（新台幣）</label>
+            <input type="number" id="budget-per-person" min="0" step="100" placeholder="例如：25000" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="budget-level">預算等級參考（AI 依目的地估算低/中/高，可微調）</label>
+          <div class="slider-row">
+            <input type="range" id="budget-level" min="0" max="100" step="1" value="50" />
+            <span id="budget-level-live" class="slider-live"></span>
+          </div>
+          <div class="slider-labels">
+            <span>低</span>
+            <span>中</span>
+            <span>高</span>
+          </div>
+          <div id="budget-level-status" class="hint-small">拖曳滑塊放開後，會自動估算並填入上方預算欄位；之後移動滑塊可即時微調</div>
+        </div>
+
+        <fieldset class="field-group">
+          <legend>來回航班（選填）</legend>
+          <div class="field-row">
+            <div class="field">
+              <label for="outbound-flight">去程班機號</label>
+              <input type="text" id="outbound-flight" placeholder="例如：BR198" />
+            </div>
+            <div class="field">
+              <label for="outbound-arrival">抵達當地時間</label>
+              <input type="datetime-local" id="outbound-arrival" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="return-flight">回程班機號</label>
+              <input type="text" id="return-flight" placeholder="例如：BR197" />
+            </div>
+            <div class="field">
+              <label for="return-departure">離開當地時間</label>
+              <input type="datetime-local" id="return-departure" />
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="style">旅遊風格（選填）</label>
+          <select id="style">
+            <option value="">不指定</option>
+            <option value="放鬆度假">放鬆度假</option>
+            <option value="美食探索">美食探索</option>
+            <option value="文化古蹟">文化古蹟</option>
+            <option value="親子出遊">親子出遊</option>
+            <option value="購物血拼">購物血拼</option>
+            <option value="自然戶外">自然戶外</option>
+            <option value="其他">其他</option>
+          </select>
+          <input type="text" id="style-other" class="style-other" placeholder="請輸入自訂旅遊風格" hidden />
+        </div>
+
+        <div class="field">
+          <label>夢想景點（選填）</label>
+          <div id="dream-spots-list">
+            <div class="dream-spot-row">
+              <input type="text" class="dream-spot-input" placeholder="想去的景點，例如：晴空塔" />
+              <button type="button" class="add-spot-btn" aria-label="新增夢想景點">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="notes">備註（選填）</label>
+          <textarea id="notes" rows="3" placeholder="其他需求，例如：不吃辣、有長輩同行、需要輪椅友善..."></textarea>
+        </div>
+
+        <button type="submit" id="submit-btn">產生行程</button>
+      </form>
+
+      <details class="settings">
+        <summary>API 金鑰設定</summary>
+        <p class="hint">
+          本頁面使用 Google Gemini API（免費額度）直接在瀏覽器呼叫，僅適合本機開發測試。
+          金鑰只會存在你的瀏覽器 localStorage，不會上傳到任何伺服器。
+          正式上線前務必改用後端代理，避免金鑰外洩。
+          <br />還沒有金鑰？到
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
+          免費註冊並建立一組 API Key。
+        </p>
+        <div class="field">
+          <label for="api-key">Google Gemini API Key</label>
+          <input type="password" id="api-key" placeholder="AIza..." />
+        </div>
+        <button type="button" id="save-key-btn">儲存金鑰</button>
+        <span id="key-status" class="key-status"></span>
+      </details>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="result-toolbar">
+        <div id="status" class="status"></div>
+        <button type="button" id="print-btn" class="print-btn" hidden>列印 / 另存 PDF</button>
+      </div>
+      <div id="itinerary" class="itinerary"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,405 @@
+:root {
+  --primary: #0b7285;
+  --primary-dark: #085467;
+  --accent: #ff922b;
+  --bg: #f4f9fb;
+  --card-bg: #ffffff;
+  --text: #1b1f23;
+  --muted: #6b7280;
+  --border: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hero {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  text-align: center;
+  padding: 48px 20px 40px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+}
+
+.hero p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+.container {
+  max-width: 1100px;
+  margin: -24px auto 60px;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+}
+
+.field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.field input[type="range"] {
+  padding: 0;
+  border: none;
+  accent-color: var(--primary);
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+}
+
+.slider-live {
+  flex: 0 0 auto;
+  min-width: 76px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hint-small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px 4px;
+  margin: 0 0 16px;
+}
+
+.field-group legend {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 6px;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.style-other {
+  margin-top: 8px;
+}
+
+#dream-spots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dream-spot-row {
+  display: flex;
+  gap: 8px;
+}
+
+.dream-spot-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-spot-btn,
+.remove-spot-btn {
+  flex: 0 0 auto;
+  width: 38px;
+  border: 1px solid var(--primary);
+  background: white;
+  color: var(--primary);
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove-spot-btn {
+  border-color: #e03131;
+  color: #e03131;
+}
+
+#submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+#submit-btn:hover {
+  opacity: 0.9;
+}
+
+#submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.settings summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+
+.settings .hint {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+#save-key-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--primary);
+  background: white;
+  color: var(--primary);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.key-status {
+  margin-left: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.result-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status {
+  min-height: 24px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.status.error {
+  color: #c92a2a;
+}
+
+.print-btn {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.print-btn:hover {
+  background: var(--primary-dark);
+}
+
+.itinerary {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.itinerary-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.badge {
+  background: #e7f5ff;
+  color: var(--primary-dark);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.day-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.day-card h3 {
+  margin: 0 0 10px;
+  color: var(--primary-dark);
+}
+
+.day-card .day-budget {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.activity {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.activity:first-of-type {
+  border-top: none;
+}
+
+.activity .time {
+  flex: 0 0 70px;
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.activity .detail .name {
+  font-weight: 600;
+}
+
+.activity .detail .desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.activity .detail .cost {
+  font-size: 12px;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.summary-card {
+  background: #f0faf5;
+  border: 1px solid #b2f2bb;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.summary-card h3 {
+  margin: 0 0 8px;
+  color: #2b8a3e;
+}
+
+.placeholder {
+  color: var(--muted);
+  text-align: center;
+  padding: 60px 20px;
+}
+
+@media print {
+  .hero,
+  .form-panel,
+  .result-toolbar,
+  .placeholder {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+
+  .container {
+    display: block;
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .panel.result-panel {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .day-card,
+  .summary-card {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+}

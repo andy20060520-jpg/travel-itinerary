@@ -1,0 +1,431 @@
+const MODEL = "gemini-flash-latest";
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const KEY_STORAGE = "travel_itinerary_api_key";
+
+const form = document.getElementById("trip-form");
+const submitBtn = document.getElementById("submit-btn");
+const statusEl = document.getElementById("status");
+const itineraryEl = document.getElementById("itinerary");
+const apiKeyInput = document.getElementById("api-key");
+const saveKeyBtn = document.getElementById("save-key-btn");
+const keyStatus = document.getElementById("key-status");
+
+const styleSelect = document.getElementById("style");
+const styleOtherInput = document.getElementById("style-other");
+const dreamSpotsList = document.getElementById("dream-spots-list");
+const budgetInput = document.getElementById("budget");
+const budgetPerPersonInput = document.getElementById("budget-per-person");
+const peopleInput = document.getElementById("people");
+const daysInput = document.getElementById("days");
+const outboundArrivalInput = document.getElementById("outbound-arrival");
+const returnDepartureInput = document.getElementById("return-departure");
+const budgetLevelSlider = document.getElementById("budget-level");
+const budgetLevelStatus = document.getElementById("budget-level-status");
+const budgetLevelLive = document.getElementById("budget-level-live");
+const printBtn = document.getElementById("print-btn");
+
+function syncBudgetPerPerson() {
+  const people = Number(peopleInput.value);
+  if (!people || !budgetInput.value) return;
+  budgetPerPersonInput.value = Math.round(Number(budgetInput.value) / people);
+}
+
+budgetInput.addEventListener("input", syncBudgetPerPerson);
+
+budgetPerPersonInput.addEventListener("input", () => {
+  const people = Number(peopleInput.value);
+  if (!people || !budgetPerPersonInput.value) return;
+  budgetInput.value = Math.round(Number(budgetPerPersonInput.value) * people);
+});
+
+function toDatetimeLocalValue(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(
+    date.getMinutes()
+  )}`;
+}
+
+function shiftDatetimeLocal(value, deltaDays) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + deltaDays);
+  return toDatetimeLocalValue(date);
+}
+
+outboundArrivalInput.addEventListener("change", () => {
+  const days = Number(daysInput.value);
+  if (!outboundArrivalInput.value || !days || days < 1) return;
+  returnDepartureInput.value = shiftDatetimeLocal(outboundArrivalInput.value, days - 1);
+});
+
+returnDepartureInput.addEventListener("change", () => {
+  const days = Number(daysInput.value);
+  if (!returnDepartureInput.value || !days || days < 1) return;
+  outboundArrivalInput.value = shiftDatetimeLocal(returnDepartureInput.value, -(days - 1));
+});
+
+function loadSavedKey() {
+  const saved = localStorage.getItem(KEY_STORAGE);
+  if (saved) {
+    apiKeyInput.value = saved;
+    keyStatus.textContent = "已儲存金鑰";
+  }
+}
+
+function getApiKey() {
+  return localStorage.getItem(KEY_STORAGE) || apiKeyInput.value.trim();
+}
+
+saveKeyBtn.addEventListener("click", () => {
+  const key = apiKeyInput.value.trim();
+  if (!key) {
+    keyStatus.textContent = "請先輸入金鑰";
+    return;
+  }
+  localStorage.setItem(KEY_STORAGE, key);
+  keyStatus.textContent = "已儲存金鑰";
+});
+
+styleSelect.addEventListener("change", () => {
+  const isOther = styleSelect.value === "其他";
+  styleOtherInput.hidden = !isOther;
+  if (!isOther) {
+    styleOtherInput.value = "";
+  } else {
+    styleOtherInput.focus();
+  }
+});
+
+function createDreamSpotRow() {
+  const row = document.createElement("div");
+  row.className = "dream-spot-row";
+  row.innerHTML = `
+    <input type="text" class="dream-spot-input" placeholder="想去的景點，例如：晴空塔" />
+    <button type="button" class="remove-spot-btn" aria-label="移除夢想景點">&minus;</button>
+  `;
+  return row;
+}
+
+dreamSpotsList.addEventListener("click", (e) => {
+  if (e.target.classList.contains("add-spot-btn")) {
+    dreamSpotsList.appendChild(createDreamSpotRow());
+  } else if (e.target.classList.contains("remove-spot-btn")) {
+    const row = e.target.closest(".dream-spot-row");
+    if (dreamSpotsList.children.length > 1) {
+      row.remove();
+    } else {
+      row.querySelector("input").value = "";
+    }
+  }
+});
+
+function formatDateTime(value) {
+  return value ? value.replace("T", " ") : "";
+}
+
+function buildPrompt({
+  destination,
+  people,
+  days,
+  budget,
+  style,
+  outboundFlight,
+  outboundArrival,
+  returnFlight,
+  returnDeparture,
+  notes,
+  dreamSpots,
+}) {
+  const extraLines = [];
+
+  if (outboundFlight || outboundArrival) {
+    extraLines.push(
+      `- 去程班機：${outboundFlight || "未提供班機號"}，抵達當地時間：${
+        outboundArrival ? formatDateTime(outboundArrival) : "未提供"
+      }（請讓第 1 天行程從抵達時間之後開始安排）`
+    );
+  }
+
+  if (returnFlight || returnDeparture) {
+    extraLines.push(
+      `- 回程班機：${returnFlight || "未提供班機號"}，離開當地時間：${
+        returnDeparture ? formatDateTime(returnDeparture) : "未提供"
+      }（請讓最後一天行程在此時間之前結束，並預留前往機場的交通時間）`
+    );
+  }
+
+  if (dreamSpots && dreamSpots.length) {
+    extraLines.push(`- 使用者的夢想景點（務必安排進行程中）：${dreamSpots.join("、")}`);
+  }
+
+  if (notes) {
+    extraLines.push(`- 備註／特殊需求：${notes}`);
+  }
+
+  return `你是一位專業旅遊行程規劃師。請根據以下條件規劃一份完整旅遊行程：
+
+- 目的地：${destination}
+- 人數：${people} 人
+- 天數：${days} 天
+- 總預算：新台幣 ${budget} 元（所有人合計）
+- 旅遊風格：${style || "不指定，請自行安排均衡行程"}
+${extraLines.join("\n")}
+
+請只回傳一個 JSON 物件，不要任何其他文字、不要 markdown code fence。JSON 結構如下：
+
+{
+  "destination": "目的地名稱",
+  "days": [
+    {
+      "day": 1,
+      "title": "當天主題（例如：抵達與市區漫遊）",
+      "budgetNote": "當天預估花費說明",
+      "activities": [
+        {
+          "time": "09:00",
+          "name": "活動或景點名稱",
+          "description": "簡短說明（30字以內）",
+          "estimatedCost": "預估花費（新台幣，含幣別文字）"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalEstimatedCost": "總預估花費（新台幣）",
+    "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
+  }
+}
+
+每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。`;
+}
+
+async function callGemini(prompt, apiKey) {
+  const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`API 錯誤 (${res.status}): ${errBody}`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  return text;
+}
+
+function parseItineraryJson(rawText) {
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  return JSON.parse(cleaned);
+}
+
+let budgetEstimateCache = null;
+let budgetEstimateKey = "";
+
+async function estimateBudgetLevels(destination, people, days, apiKey) {
+  const prompt = `你是旅遊預算顧問。請針對以下旅遊條件，估算「低、中、高」三種預算等級的總花費（新台幣，含交通、住宿、餐飲、活動等所有人合計費用）：
+- 目的地：${destination}
+- 人數：${people} 人
+- 天數：${days} 天
+
+低＝省錢玩法，中＝一般水準，高＝舒適寬裕。請只回傳 JSON，不要任何其他文字：
+{"low": 數字, "medium": 數字, "high": 數字}
+數字為新台幣整數，不含逗號或文字。`;
+
+  const rawText = await callGemini(prompt, apiKey);
+  return parseItineraryJson(rawText);
+}
+
+function interpolateBudget(pct, estimate) {
+  const value =
+    pct <= 50
+      ? estimate.low + (estimate.medium - estimate.low) * (pct / 50)
+      : estimate.medium + (estimate.high - estimate.medium) * ((pct - 50) / 50);
+  return Math.round(value / 100) * 100;
+}
+
+function levelLabelForPct(pct) {
+  if (pct <= 20) return "低";
+  if (pct <= 40) return "中低";
+  if (pct <= 60) return "中";
+  if (pct <= 80) return "中高";
+  return "高";
+}
+
+function currentTripKey() {
+  const destination = document.getElementById("destination").value.trim();
+  const people = document.getElementById("people").value;
+  const days = document.getElementById("days").value;
+  return { destination, people, days, key: `${destination}|${people}|${days}` };
+}
+
+budgetLevelSlider.addEventListener("input", () => {
+  const pct = Number(budgetLevelSlider.value);
+  const { key } = currentTripKey();
+  if (budgetEstimateCache && budgetEstimateKey === key) {
+    budgetLevelLive.textContent = `NT$${interpolateBudget(pct, budgetEstimateCache).toLocaleString()}`;
+  } else {
+    budgetLevelLive.textContent = levelLabelForPct(pct);
+  }
+});
+
+budgetLevelSlider.addEventListener("change", async () => {
+  const pct = Number(budgetLevelSlider.value);
+  const { destination, people, days, key: cacheKey } = currentTripKey();
+
+  if (!destination || !people || !days) {
+    budgetLevelStatus.textContent = "請先填寫目的地、人數、天數，才能估算預算";
+    return;
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    budgetLevelStatus.textContent = "請先在下方「API 金鑰設定」輸入並儲存金鑰";
+    return;
+  }
+
+  try {
+    if (budgetEstimateKey !== cacheKey || !budgetEstimateCache) {
+      budgetLevelStatus.textContent = "AI 估算中...";
+      budgetLevelLive.textContent = "估算中";
+      budgetEstimateCache = await estimateBudgetLevels(destination, people, days, apiKey);
+      budgetEstimateKey = cacheKey;
+    }
+
+    const value = interpolateBudget(pct, budgetEstimateCache);
+    budgetInput.value = value;
+    syncBudgetPerPerson();
+    budgetLevelLive.textContent = `NT$${value.toLocaleString()}`;
+    budgetLevelStatus.textContent = `已套用「${levelLabelForPct(pct)}」：NT$${value.toLocaleString()}（低 NT$${Number(
+      budgetEstimateCache.low
+    ).toLocaleString()} / 中 NT$${Number(budgetEstimateCache.medium).toLocaleString()} / 高 NT$${Number(
+      budgetEstimateCache.high
+    ).toLocaleString()}，可持續拖曳微調）`;
+  } catch (err) {
+    console.error(err);
+    budgetLevelStatus.textContent = `估算失敗：${err.message}`;
+  }
+});
+
+function renderItinerary(data, { people, budget }) {
+  itineraryEl.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "itinerary-header";
+  header.innerHTML = `
+    <span class="badge">${data.destination}</span>
+    <span class="badge">${people} 人</span>
+    <span class="badge">${data.days.length} 天</span>
+    <span class="badge">預算 NT$${Number(budget).toLocaleString()}</span>
+  `;
+  itineraryEl.appendChild(header);
+
+  data.days.forEach((day) => {
+    const card = document.createElement("div");
+    card.className = "day-card";
+    const activitiesHtml = day.activities
+      .map(
+        (a) => `
+        <div class="activity">
+          <div class="time">${a.time || ""}</div>
+          <div class="detail">
+            <div class="name">${a.name || ""}</div>
+            <div class="desc">${a.description || ""}</div>
+            <div class="cost">${a.estimatedCost || ""}</div>
+          </div>
+        </div>`
+      )
+      .join("");
+
+    card.innerHTML = `
+      <h3>Day ${day.day}：${day.title || ""}</h3>
+      <div class="day-budget">${day.budgetNote || ""}</div>
+      ${activitiesHtml}
+    `;
+    itineraryEl.appendChild(card);
+  });
+
+  if (data.summary) {
+    const summaryCard = document.createElement("div");
+    summaryCard.className = "summary-card";
+    const tipsHtml = (data.summary.tips || [])
+      .map((t) => `<li>${t}</li>`)
+      .join("");
+    summaryCard.innerHTML = `
+      <h3>行程總覽</h3>
+      <p><strong>總預估花費：</strong>${data.summary.totalEstimatedCost || "-"}</p>
+      <ul>${tipsHtml}</ul>
+    `;
+    itineraryEl.appendChild(summaryCard);
+  }
+}
+
+function showPlaceholder() {
+  itineraryEl.innerHTML = `<div class="placeholder">填寫左側表單，按下「產生行程」開始規劃。</div>`;
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    statusEl.textContent = "請先在下方「API 金鑰設定」輸入並儲存你的 Google Gemini API Key。";
+    statusEl.className = "status error";
+    return;
+  }
+
+  const dreamSpots = Array.from(document.querySelectorAll(".dream-spot-input"))
+    .map((el) => el.value.trim())
+    .filter(Boolean);
+
+  const payload = {
+    destination: document.getElementById("destination").value.trim(),
+    people: document.getElementById("people").value,
+    days: document.getElementById("days").value,
+    budget: document.getElementById("budget").value,
+    style: styleSelect.value === "其他" ? styleOtherInput.value.trim() : styleSelect.value,
+    outboundFlight: document.getElementById("outbound-flight").value.trim(),
+    outboundArrival: document.getElementById("outbound-arrival").value,
+    returnFlight: document.getElementById("return-flight").value.trim(),
+    returnDeparture: document.getElementById("return-departure").value,
+    notes: document.getElementById("notes").value.trim(),
+    dreamSpots,
+  };
+
+  submitBtn.disabled = true;
+  statusEl.className = "status";
+  statusEl.textContent = "正在為你規劃行程，請稍候...";
+  itineraryEl.innerHTML = "";
+  printBtn.hidden = true;
+
+  try {
+    const prompt = buildPrompt(payload);
+    const rawText = await callGemini(prompt, apiKey);
+    const data = parseItineraryJson(rawText);
+    renderItinerary(data, payload);
+    statusEl.textContent = "行程已產生完成。";
+    printBtn.hidden = false;
+  } catch (err) {
+    console.error(err);
+    statusEl.className = "status error";
+    statusEl.textContent = `發生錯誤：${err.message}`;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+printBtn.addEventListener("click", () => {
+  window.print();
+});
+
+loadSavedKey();
+showPlaceholder();
