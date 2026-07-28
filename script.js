@@ -30,12 +30,16 @@ function syncBudgetPerPerson() {
   budgetPerPersonInput.value = Math.round(Number(budgetInput.value) / people);
 }
 
-budgetInput.addEventListener("input", syncBudgetPerPerson);
+budgetInput.addEventListener("input", () => {
+  syncBudgetPerPerson();
+  syncSliderFromBudget();
+});
 
 budgetPerPersonInput.addEventListener("input", () => {
   const people = Number(peopleInput.value);
   if (!people || !budgetPerPersonInput.value) return;
   budgetInput.value = Math.round(Number(budgetPerPersonInput.value) * people);
+  syncSliderFromBudget();
 });
 
 function toDatetimeLocalValue(date) {
@@ -259,6 +263,36 @@ function levelLabelForPct(pct) {
   if (pct <= 60) return "中";
   if (pct <= 80) return "中高";
   return "高";
+}
+
+function budgetToPct(value, estimate) {
+  const pct =
+    value <= estimate.medium
+      ? estimate.medium === estimate.low
+        ? 50
+        : ((value - estimate.low) / (estimate.medium - estimate.low)) * 50
+      : estimate.high === estimate.medium
+      ? 50
+      : 50 + ((value - estimate.medium) / (estimate.high - estimate.medium)) * 50;
+  return Math.min(100, Math.max(0, Math.round(pct)));
+}
+
+function syncSliderFromBudget() {
+  const { key } = currentTripKey();
+  const value = Number(budgetInput.value);
+  if (!value) return;
+  if (!budgetEstimateCache || budgetEstimateKey !== key) {
+    budgetLevelStatus.textContent = "先拖曳一次滑塊估算基準，之後輸入金額才會同步滑塊位置";
+    return;
+  }
+  const pct = budgetToPct(value, budgetEstimateCache);
+  budgetLevelSlider.value = pct;
+  budgetLevelLive.textContent = `NT$${value.toLocaleString()}`;
+  budgetLevelStatus.textContent = `已依輸入金額同步滑塊位置：${levelLabelForPct(pct)}（低 NT$${Number(
+    budgetEstimateCache.low
+  ).toLocaleString()} / 中 NT$${Number(budgetEstimateCache.medium).toLocaleString()} / 高 NT$${Number(
+    budgetEstimateCache.high
+  ).toLocaleString()}）`;
 }
 
 function currentTripKey() {
