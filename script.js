@@ -23,6 +23,14 @@ const budgetLevelSlider = document.getElementById("budget-level");
 const budgetLevelStatus = document.getElementById("budget-level-status");
 const budgetLevelLive = document.getElementById("budget-level-live");
 const printBtn = document.getElementById("print-btn");
+const cancelBtn = document.getElementById("cancel-btn");
+const revisePanel = document.getElementById("revise-panel");
+const reviseInput = document.getElementById("revise-input");
+const reviseBtn = document.getElementById("revise-btn");
+
+let activeController = null;
+let lastItineraryData = null;
+let lastPayload = null;
 
 function syncBudgetPerPerson() {
   const people = Number(peopleInput.value);
@@ -201,7 +209,7 @@ ${extraLines.join("\n")}
 每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。`;
 }
 
-async function callGemini(prompt, apiKey) {
+async function callGemini(prompt, apiKey, signal) {
   const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: {
@@ -213,6 +221,7 @@ async function callGemini(prompt, apiKey) {
         responseMimeType: "application/json",
       },
     }),
+    signal,
   });
 
   if (!res.ok) {
@@ -448,25 +457,122 @@ form.addEventListener("submit", async (e) => {
   statusEl.textContent = "正在為你規劃行程，請稍候...";
   itineraryEl.innerHTML = "";
   printBtn.hidden = true;
+  revisePanel.hidden = true;
+  cancelBtn.hidden = false;
+  activeController = new AbortController();
 
   try {
     const prompt = buildPrompt(payload);
-    const rawText = await callGemini(prompt, apiKey);
+    const rawText = await callGemini(prompt, apiKey, activeController.signal);
     const data = parseItineraryJson(rawText);
     renderItinerary(data, payload);
+    lastItineraryData = data;
+    lastPayload = payload;
     statusEl.textContent = "行程已產生完成。";
     printBtn.hidden = false;
+    revisePanel.hidden = false;
   } catch (err) {
-    console.error(err);
-    statusEl.className = "status error";
-    statusEl.textContent = `發生錯誤：${err.message}`;
+    if (err.name === "AbortError") {
+      statusEl.textContent = "已取消產生行程。";
+      showPlaceholder();
+    } else {
+      console.error(err);
+      statusEl.className = "status error";
+      statusEl.textContent = `發生錯誤：${err.message}`;
+    }
   } finally {
     submitBtn.disabled = false;
+    cancelBtn.hidden = true;
+    activeController = null;
   }
 });
 
 printBtn.addEventListener("click", () => {
   window.print();
+});
+
+cancelBtn.addEventListener("click", () => {
+  if (activeController) activeController.abort();
+});
+
+function buildRevisionPrompt(currentData, instruction) {
+  return `你是一位專業旅遊行程規劃師。以下是目前已經產生的行程 JSON：
+
+${JSON.stringify(currentData)}
+
+使用者想針對這份行程做以下調整：
+「${instruction}」
+
+請依照這個調整需求修改行程，盡量只變動需要調整的部分，維持原本天數與整體結構不變（除非使用者要求變更天數）。請只回傳修改後完整的 JSON 物件，結構需與原本相同，不要任何其他文字、不要 markdown code fence：
+
+{
+  "destination": "目的地名稱",
+  "days": [
+    {
+      "day": 1,
+      "title": "當天主題",
+      "budgetNote": "當天預估花費說明",
+      "activities": [
+        {
+          "time": "09:00",
+          "name": "活動或景點名稱",
+          "description": "簡短說明（30字以內）",
+          "estimatedCost": "預估花費（新台幣，含幣別文字）"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalEstimatedCost": "總預估花費（新台幣）",
+    "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
+  }
+}`;
+}
+
+reviseBtn.addEventListener("click", async () => {
+  const instruction = reviseInput.value.trim();
+  if (!instruction || !lastItineraryData) return;
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    statusEl.textContent = "請先在上方「API 金鑰設定」輸入並儲存你的 Google Gemini API Key。";
+    statusEl.className = "status error";
+    return;
+  }
+
+  reviseBtn.disabled = true;
+  reviseInput.disabled = true;
+  statusEl.className = "status";
+  statusEl.textContent = "正在依照你的需求調整行程，請稍候...";
+  printBtn.hidden = true;
+  cancelBtn.hidden = false;
+  activeController = new AbortController();
+
+  try {
+    const prompt = buildRevisionPrompt(lastItineraryData, instruction);
+    const rawText = await callGemini(prompt, apiKey, activeController.signal);
+    const data = parseItineraryJson(rawText);
+    renderItinerary(data, lastPayload);
+    lastItineraryData = data;
+    reviseInput.value = "";
+    statusEl.textContent = "行程已依需求調整完成。";
+    printBtn.hidden = false;
+  } catch (err) {
+    if (err.name === "AbortError") {
+      statusEl.textContent = "已取消調整，行程維持原樣。";
+      printBtn.hidden = false;
+    } else {
+      console.error(err);
+      statusEl.className = "status error";
+      statusEl.textContent = `發生錯誤：${err.message}`;
+      printBtn.hidden = false;
+    }
+  } finally {
+    reviseBtn.disabled = false;
+    reviseInput.disabled = false;
+    cancelBtn.hidden = true;
+    activeController = null;
+  }
 });
 
 loadSavedKey();

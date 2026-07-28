@@ -134,9 +134,17 @@
     <section class="panel result-panel">
       <div class="result-toolbar">
         <div id="status" class="status"></div>
+        <button type="button" id="cancel-btn" class="cancel-btn" hidden>取消產生</button>
         <button type="button" id="print-btn" class="print-btn" hidden>列印 / 另存 PDF</button>
       </div>
       <div id="itinerary" class="itinerary"></div>
+      <div id="revise-panel" class="revise-panel" hidden>
+        <label for="revise-input">想調整這份行程嗎？</label>
+        <div class="revise-row">
+          <input type="text" id="revise-input" placeholder="例如：把 Day2 午餐改成拉麵、減少購物行程..." />
+          <button type="button" id="revise-btn">修改行程</button>
+        </div>
+      </div>
     </section>
   </main>
 
