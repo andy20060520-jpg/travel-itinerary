@@ -352,15 +352,20 @@ budgetLevelSlider.addEventListener("change", async () => {
   }
 });
 
+function escapeHtml(value) {
+  const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => map[ch]);
+}
+
 function renderItinerary(data, { people, budget }) {
   itineraryEl.innerHTML = "";
 
   const header = document.createElement("div");
   header.className = "itinerary-header";
   header.innerHTML = `
-    <span class="badge">${data.destination}</span>
-    <span class="badge">${people} 人</span>
-    <span class="badge">${data.days.length} 天</span>
+    <span class="badge">${escapeHtml(data.destination)}</span>
+    <span class="badge">${escapeHtml(people)} 人</span>
+    <span class="badge">${escapeHtml(data.days.length)} 天</span>
     <span class="badge">預算 NT$${Number(budget).toLocaleString()}</span>
   `;
   itineraryEl.appendChild(header);
@@ -375,11 +380,11 @@ function renderItinerary(data, { people, budget }) {
         )}`;
         return `
         <div class="activity">
-          <div class="time">${a.time || ""}</div>
+          <div class="time">${escapeHtml(a.time)}</div>
           <div class="detail">
-            <div class="name">${a.name || ""}</div>
-            <div class="desc">${a.description || ""}</div>
-            <div class="cost">${a.estimatedCost || ""}</div>
+            <div class="name">${escapeHtml(a.name)}</div>
+            <div class="desc">${escapeHtml(a.description)}</div>
+            <div class="cost">${escapeHtml(a.estimatedCost)}</div>
             <a class="maps-link" href="${mapsUrl}" target="_blank" rel="noopener">📍 在 Google Maps 開啟</a>
           </div>
         </div>`;
@@ -387,8 +392,8 @@ function renderItinerary(data, { people, budget }) {
       .join("");
 
     card.innerHTML = `
-      <h3>Day ${day.day}：${day.title || ""}</h3>
-      <div class="day-budget">${day.budgetNote || ""}</div>
+      <h3>Day ${escapeHtml(day.day)}：${escapeHtml(day.title)}</h3>
+      <div class="day-budget">${escapeHtml(day.budgetNote)}</div>
       ${activitiesHtml}
     `;
     itineraryEl.appendChild(card);
@@ -398,11 +403,11 @@ function renderItinerary(data, { people, budget }) {
     const summaryCard = document.createElement("div");
     summaryCard.className = "summary-card";
     const tipsHtml = (data.summary.tips || [])
-      .map((t) => `<li>${t}</li>`)
+      .map((t) => `<li>${escapeHtml(t)}</li>`)
       .join("");
     summaryCard.innerHTML = `
       <h3>行程總覽</h3>
-      <p><strong>總預估花費：</strong>${data.summary.totalEstimatedCost || "-"}</p>
+      <p><strong>總預估花費：</strong>${escapeHtml(data.summary.totalEstimatedCost) || "-"}</p>
       <ul>${tipsHtml}</ul>
     `;
     itineraryEl.appendChild(summaryCard);
