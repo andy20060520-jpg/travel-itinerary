@@ -60,6 +60,21 @@ body {
   padding: 24px;
 }
 
+.result-panel {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+@media (max-width: 800px) {
+  .result-panel {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
 .field {
   margin-bottom: 16px;
   display: flex;
