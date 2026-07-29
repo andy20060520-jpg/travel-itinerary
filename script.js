@@ -27,6 +27,11 @@ const cancelBtn = document.getElementById("cancel-btn");
 const revisePanel = document.getElementById("revise-panel");
 const reviseInput = document.getElementById("revise-input");
 const reviseBtn = document.getElementById("revise-btn");
+const printPreviewModal = document.getElementById("print-preview-modal");
+const printPreviewContent = document.getElementById("print-preview-content");
+const previewCloseBtn = document.getElementById("preview-close-btn");
+const previewCancelBtn = document.getElementById("preview-cancel-btn");
+const previewPrintBtn = document.getElementById("preview-print-btn");
 
 let activeController = null;
 let lastItineraryData = null;
@@ -600,6 +605,24 @@ form.addEventListener("submit", async (e) => {
 });
 
 printBtn.addEventListener("click", () => {
+  printPreviewContent.innerHTML = itineraryEl.innerHTML;
+  printPreviewModal.hidden = false;
+});
+
+function closePrintPreview() {
+  printPreviewModal.hidden = true;
+  printPreviewContent.innerHTML = "";
+}
+
+previewCloseBtn.addEventListener("click", closePrintPreview);
+previewCancelBtn.addEventListener("click", closePrintPreview);
+
+printPreviewModal.addEventListener("click", (e) => {
+  if (e.target === printPreviewModal) closePrintPreview();
+});
+
+previewPrintBtn.addEventListener("click", () => {
+  closePrintPreview();
   window.print();
 });
 

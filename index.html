@@ -148,6 +148,20 @@
     </section>
   </main>
 
+  <div id="print-preview-modal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>列印預覽</h3>
+        <button type="button" id="preview-close-btn" class="modal-close" aria-label="關閉預覽">&times;</button>
+      </div>
+      <div id="print-preview-content" class="modal-content itinerary"></div>
+      <div class="modal-footer">
+        <button type="button" id="preview-cancel-btn" class="modal-cancel-btn">返回修改</button>
+        <button type="button" id="preview-print-btn" class="print-btn">確認列印 / 另存 PDF</button>
+      </div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
