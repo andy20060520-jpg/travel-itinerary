@@ -186,7 +186,7 @@ function buildPrompt({
 - 旅遊風格：${style || "不指定，請自行安排均衡行程"}
 ${extraLines.join("\n")}
 
-請務必將往返交通費（飛機、高鐵、火車、客運等，視目的地與移動方式而定）計入總預算，若有提供班機與日期，請依實際季節/日期估算合理票價；若沒提供，也請依目的地距離給出合理的來回交通費估計，並在 summary.transportationCost 中列出（所有人合計）。
+請務必將往返交通費（飛機、高鐵、火車、客運等，視目的地與移動方式而定）計入總預算，若有提供班機與日期，請依實際季節/日期估算合理票價；若沒提供，也請依目的地距離給出合理的來回交通費估計。
 
 請只回傳一個 JSON 物件，不要任何其他文字、不要 markdown code fence。JSON 結構如下：
 
@@ -212,13 +212,19 @@ ${extraLines.join("\n")}
     }
   ],
   "summary": {
-    "transportationCost": "往返交通費預估（新台幣，含幣別文字，所有人合計，簡短說明依據）",
-    "totalEstimatedCost": "總預估花費（新台幣）",
+    "budgetBreakdown": {
+      "transportation": "往返交通費總計（新台幣，含幣別文字，所有人合計）",
+      "accommodation": "住宿費總計（新台幣，含幣別文字，所有人合計，加總全部住宿晚數）",
+      "food": "餐飲費總計（新台幣，含幣別文字，所有人合計，加總全部餐點）",
+      "activities": "景點門票／活動體驗費總計（新台幣，含幣別文字，所有人合計）",
+      "shopping": "購物與雜支預留費用（新台幣，含幣別文字，所有人合計，若無則填 新台幣 0 元）"
+    },
+    "totalEstimatedCost": "總預估花費（新台幣，應等於 budgetBreakdown 五項加總）",
     "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
   }
 }
 
-每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。每天請依行程動線標出合理的住宿地點/區域與預估費用（最後一天若當天直接返程、不過夜，accommodation 可設為 null）；所有住宿費用務必加總計入 summary.totalEstimatedCost。`;
+每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。每天請依行程動線標出合理的住宿地點/區域與預估費用（最後一天若當天直接返程、不過夜，accommodation 可設為 null）。summary.budgetBreakdown 的五個類別請務必分類清楚、加總後等於 totalEstimatedCost。`;
 }
 
 function wait(ms, signal) {
@@ -457,7 +463,17 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => map[ch]);
 }
 
-function renderItinerary(data, { people, budget }) {
+function dayDateLabel(outboundArrival, dayNumber) {
+  if (!outboundArrival) return "";
+  const date = new Date(outboundArrival);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + (Number(dayNumber) - 1));
+  const pad = (n) => String(n).padStart(2, "0");
+  const weekday = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}（週${weekday}）`;
+}
+
+function renderItinerary(data, { people, budget, outboundArrival }) {
   itineraryEl.innerHTML = "";
 
   const header = document.createElement("div");
@@ -507,8 +523,12 @@ function renderItinerary(data, { people, budget }) {
         </div>`;
     }
 
+    const dateLabel = dayDateLabel(outboundArrival, day.day);
+
     card.innerHTML = `
-      <h3>Day ${escapeHtml(day.day)}：${escapeHtml(day.title)}</h3>
+      <h3>Day ${escapeHtml(day.day)}${dateLabel ? `<span class="day-date">${escapeHtml(dateLabel)}</span>` : ""}：${escapeHtml(
+        day.title
+      )}</h3>
       <div class="day-budget">${escapeHtml(day.budgetNote)}</div>
       ${activitiesHtml}
       ${accommodationHtml}
@@ -522,13 +542,36 @@ function renderItinerary(data, { people, budget }) {
     const tipsHtml = (data.summary.tips || [])
       .map((t) => `<li>${escapeHtml(t)}</li>`)
       .join("");
-    const transportationHtml = data.summary.transportationCost
-      ? `<p><strong>往返交通費：</strong>${escapeHtml(data.summary.transportationCost)}</p>`
+
+    const breakdown = data.summary.budgetBreakdown;
+    const breakdownItems = breakdown
+      ? [
+          ["🚗", "交通", breakdown.transportation],
+          ["🏨", "住宿", breakdown.accommodation],
+          ["🍜", "餐飲", breakdown.food],
+          ["🎟", "活動門票", breakdown.activities],
+          ["🛍", "購物雜支", breakdown.shopping],
+        ]
+      : [];
+    const breakdownHtml = breakdownItems.length
+      ? `
+      <div class="budget-breakdown">
+        ${breakdownItems
+          .map(
+            ([icon, label, value]) => `
+          <div class="breakdown-item">
+            <span class="breakdown-label">${icon} ${escapeHtml(label)}</span>
+            <span class="breakdown-value">${escapeHtml(value)}</span>
+          </div>`
+          )
+          .join("")}
+      </div>`
       : "";
+
     summaryCard.innerHTML = `
       <h3>行程總覽</h3>
-      ${transportationHtml}
-      <p><strong>總預估花費：</strong>${escapeHtml(data.summary.totalEstimatedCost) || "-"}</p>
+      ${breakdownHtml}
+      <p class="total-cost"><strong>總預估花費：</strong>${escapeHtml(data.summary.totalEstimatedCost) || "-"}</p>
       <ul>${tipsHtml}</ul>
     `;
     itineraryEl.appendChild(summaryCard);
@@ -662,13 +705,19 @@ ${JSON.stringify(currentData)}
     }
   ],
   "summary": {
-    "transportationCost": "往返交通費預估（新台幣，含幣別文字，所有人合計）",
-    "totalEstimatedCost": "總預估花費（新台幣）",
+    "budgetBreakdown": {
+      "transportation": "往返交通費總計（新台幣，含幣別文字，所有人合計）",
+      "accommodation": "住宿費總計（新台幣，含幣別文字，所有人合計，加總全部住宿晚數）",
+      "food": "餐飲費總計（新台幣，含幣別文字，所有人合計，加總全部餐點）",
+      "activities": "景點門票／活動體驗費總計（新台幣，含幣別文字，所有人合計）",
+      "shopping": "購物與雜支預留費用（新台幣，含幣別文字，所有人合計，若無則填 新台幣 0 元）"
+    },
+    "totalEstimatedCost": "總預估花費（新台幣，應等於 budgetBreakdown 五項加總）",
     "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
   }
 }
 
-最後一天若當天直接返程、不過夜，accommodation 可設為 null；所有住宿費用務必加總計入 summary.totalEstimatedCost。`;
+最後一天若當天直接返程、不過夜，accommodation 可設為 null。summary.budgetBreakdown 的五個類別請務必分類清楚、加總後等於 totalEstimatedCost。`;
 }
 
 reviseBtn.addEventListener("click", async () => {

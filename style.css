@@ -436,6 +436,13 @@ body {
   color: var(--primary-dark);
 }
 
+.day-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 8px;
+}
+
 .day-card .day-budget {
   font-size: 13px;
   color: var(--muted);
@@ -519,6 +526,38 @@ body {
 .summary-card h3 {
   margin: 0 0 8px;
   color: #2b8a3e;
+}
+
+.budget-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.breakdown-item {
+  background: white;
+  border: 1px solid #b2f2bb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.breakdown-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.breakdown-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2b8a3e;
+}
+
+.summary-card .total-cost {
+  font-size: 15px;
 }
 
 .placeholder {
