@@ -186,7 +186,7 @@ function buildPrompt({
 - 旅遊風格：${style || "不指定，請自行安排均衡行程"}
 ${extraLines.join("\n")}
 
-請務必將往返交通費（飛機、高鐵、火車、客運等，視目的地與移動方式而定）計入總預算，若有提供班機與日期，請依實際季節/日期估算合理票價；若沒提供，也請依目的地距離給出合理的來回交通費估計。
+請務必將往返交通費（飛機、高鐵、火車、客運等，視目的地與移動方式而定）計入總預算，若有提供班機與日期，請依實際季節/日期估算合理票價；若沒提供，也請依目的地距離給出合理的來回交通費估計。所有景點門票與交通費用請仔細核對，估算貼近實際市價的合理數字；若該目的地常見的通票、套票、線上預購優惠、學生／團體優惠等能省錢的方案，請列在 summary.discounts 中。
 
 請只回傳一個 JSON 物件，不要任何其他文字、不要 markdown code fence。JSON 結構如下：
 
@@ -220,11 +220,12 @@ ${extraLines.join("\n")}
       "shopping": "購物與雜支預留費用（新台幣，含幣別文字，所有人合計，若無則填 新台幣 0 元）"
     },
     "totalEstimatedCost": "總預估花費（新台幣，應等於 budgetBreakdown 五項加總）",
+    "discounts": ["與本行程門票/交通相關的優惠方案1（例如：Tokyo Subway Ticket 48小時券比單次購票省NT$xxx）", "優惠方案2"],
     "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
   }
 }
 
-每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。每天請依行程動線標出合理的住宿地點/區域與預估費用（最後一天若當天直接返程、不過夜，accommodation 可設為 null）。summary.budgetBreakdown 的五個類別請務必分類清楚、加總後等於 totalEstimatedCost。`;
+每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。每天請依行程動線標出合理的住宿地點/區域與預估費用（最後一天若當天直接返程、不過夜，accommodation 可設為 null）。summary.budgetBreakdown 的五個類別請務必分類清楚、加總後等於 totalEstimatedCost。若沒有適用的優惠方案，summary.discounts 可為空陣列。`;
 }
 
 function wait(ms, signal) {
@@ -568,10 +569,19 @@ function renderItinerary(data, { people, budget, outboundArrival }) {
       </div>`
       : "";
 
+    const discountsHtml = (data.summary.discounts || []).length
+      ? `
+      <div class="discounts-box">
+        <p class="discounts-title">🎫 優惠方案</p>
+        <ul>${data.summary.discounts.map((d) => `<li>${escapeHtml(d)}</li>`).join("")}</ul>
+      </div>`
+      : "";
+
     summaryCard.innerHTML = `
       <h3>行程總覽</h3>
       ${breakdownHtml}
       <p class="total-cost"><strong>總預估花費：</strong>${escapeHtml(data.summary.totalEstimatedCost) || "-"}</p>
+      ${discountsHtml}
       <ul>${tipsHtml}</ul>
     `;
     itineraryEl.appendChild(summaryCard);
@@ -713,6 +723,7 @@ ${JSON.stringify(currentData)}
       "shopping": "購物與雜支預留費用（新台幣，含幣別文字，所有人合計，若無則填 新台幣 0 元）"
     },
     "totalEstimatedCost": "總預估花費（新台幣，應等於 budgetBreakdown 五項加總）",
+    "discounts": ["與本行程門票/交通相關的優惠方案（若無則為空陣列）"],
     "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
   }
 }

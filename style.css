@@ -560,6 +560,25 @@ body {
   font-size: 15px;
 }
 
+.discounts-box {
+  background: #fff9db;
+  border: 1px solid #ffe066;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+
+.discounts-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: #997404;
+}
+
+.discounts-box ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .placeholder {
   color: var(--muted);
   text-align: center;
@@ -620,6 +639,10 @@ body {
   flex: 1;
 }
 
+.modal-content .summary-card {
+  order: -1;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -669,5 +692,9 @@ body {
   .summary-card {
     break-inside: avoid;
     border: 1px solid #ccc;
+  }
+
+  .summary-card {
+    order: -1;
   }
 }
