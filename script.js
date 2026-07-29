@@ -505,8 +505,8 @@ function renderItinerary(data, { people, budget }) {
     card.innerHTML = `
       <h3>Day ${escapeHtml(day.day)}：${escapeHtml(day.title)}</h3>
       <div class="day-budget">${escapeHtml(day.budgetNote)}</div>
-      ${accommodationHtml}
       ${activitiesHtml}
+      ${accommodationHtml}
     `;
     itineraryEl.appendChild(card);
   });
