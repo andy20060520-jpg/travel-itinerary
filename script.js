@@ -152,7 +152,7 @@ function buildPrompt({
     extraLines.push(
       `- 去程班機：${outboundFlight || "未提供班機號"}，抵達當地時間：${
         outboundArrival ? formatDateTime(outboundArrival) : "未提供"
-      }（請讓第 1 天行程從抵達時間之後開始安排）`
+      }（請讓第 1 天行程從抵達時間之後開始安排；並依此日期的季節/是否為假期，合理估算這趟去程交通的實際票價）`
     );
   }
 
@@ -160,7 +160,7 @@ function buildPrompt({
     extraLines.push(
       `- 回程班機：${returnFlight || "未提供班機號"}，離開當地時間：${
         returnDeparture ? formatDateTime(returnDeparture) : "未提供"
-      }（請讓最後一天行程在此時間之前結束，並預留前往機場的交通時間）`
+      }（請讓最後一天行程在此時間之前結束，並預留前往機場的交通時間；並依此日期合理估算回程交通的實際票價）`
     );
   }
 
@@ -180,6 +180,8 @@ function buildPrompt({
 - 總預算：新台幣 ${budget} 元（所有人合計）
 - 旅遊風格：${style || "不指定，請自行安排均衡行程"}
 ${extraLines.join("\n")}
+
+請務必將往返交通費（飛機、高鐵、火車、客運等，視目的地與移動方式而定）計入總預算，若有提供班機與日期，請依實際季節/日期估算合理票價；若沒提供，也請依目的地距離給出合理的來回交通費估計，並在 summary.transportationCost 中列出（所有人合計）。
 
 請只回傳一個 JSON 物件，不要任何其他文字、不要 markdown code fence。JSON 結構如下：
 
@@ -201,6 +203,7 @@ ${extraLines.join("\n")}
     }
   ],
   "summary": {
+    "transportationCost": "往返交通費預估（新台幣，含幣別文字，所有人合計，簡短說明依據）",
     "totalEstimatedCost": "總預估花費（新台幣）",
     "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
   }
@@ -243,11 +246,22 @@ function parseItineraryJson(rawText) {
 let budgetEstimateCache = null;
 let budgetEstimateKey = "";
 
-async function estimateBudgetLevels(destination, people, days, apiKey) {
-  const prompt = `你是旅遊預算顧問。請針對以下旅遊條件，估算「低、中、高」三種預算等級的總花費（新台幣，含交通、住宿、餐飲、活動等所有人合計費用）：
+async function estimateBudgetLevels(destination, people, days, apiKey, flightContext) {
+  const flightLines = [];
+  if (flightContext?.outboundArrival) {
+    flightLines.push(`- 去程抵達時間：${formatDateTime(flightContext.outboundArrival)}`);
+  }
+  if (flightContext?.returnDeparture) {
+    flightLines.push(`- 回程離開時間：${formatDateTime(flightContext.returnDeparture)}`);
+  }
+  const flightNote = flightLines.length
+    ? `\n${flightLines.join("\n")}\n請依這些日期的季節/是否為假期，合理反映來回交通費（機票、高鐵、火車等）在旺季或淡季的價格差異。`
+    : "";
+
+  const prompt = `你是旅遊預算顧問。請針對以下旅遊條件，估算「低、中、高」三種預算等級的總花費（新台幣，含往返交通、住宿、餐飲、活動等所有人合計費用）：
 - 目的地：${destination}
 - 人數：${people} 人
-- 天數：${days} 天
+- 天數：${days} 天${flightNote}
 
 低＝省錢玩法，中＝一般水準，高＝舒適寬裕。請只回傳 JSON，不要任何其他文字：
 {"low": 數字, "medium": 數字, "high": 數字}
@@ -325,7 +339,17 @@ function currentTripKey() {
   const destination = document.getElementById("destination").value.trim();
   const people = document.getElementById("people").value;
   const days = document.getElementById("days").value;
-  return { destination, people, days, key: `${destination}|${people}|${days}` };
+  const flightContext = {
+    outboundArrival: outboundArrivalInput.value,
+    returnDeparture: returnDepartureInput.value,
+  };
+  return {
+    destination,
+    people,
+    days,
+    flightContext,
+    key: `${destination}|${people}|${days}|${flightContext.outboundArrival}|${flightContext.returnDeparture}`,
+  };
 }
 
 budgetLevelSlider.addEventListener("input", () => {
@@ -340,7 +364,7 @@ budgetLevelSlider.addEventListener("input", () => {
 
 budgetLevelSlider.addEventListener("change", async () => {
   const pct = Number(budgetLevelSlider.value);
-  const { destination, people, days, key: cacheKey } = currentTripKey();
+  const { destination, people, days, flightContext, key: cacheKey } = currentTripKey();
 
   if (!destination || !people || !days) {
     budgetLevelStatus.textContent = "請先填寫目的地、人數、天數，才能估算預算";
@@ -357,7 +381,7 @@ budgetLevelSlider.addEventListener("change", async () => {
     if (budgetEstimateKey !== cacheKey || !budgetEstimateCache) {
       budgetLevelStatus.textContent = "AI 估算中...";
       setSliderLive("估算中");
-      budgetEstimateCache = await estimateBudgetLevels(destination, people, days, apiKey);
+      budgetEstimateCache = await estimateBudgetLevels(destination, people, days, apiKey, flightContext);
       budgetEstimateKey = cacheKey;
     }
 
@@ -429,8 +453,12 @@ function renderItinerary(data, { people, budget }) {
     const tipsHtml = (data.summary.tips || [])
       .map((t) => `<li>${escapeHtml(t)}</li>`)
       .join("");
+    const transportationHtml = data.summary.transportationCost
+      ? `<p><strong>往返交通費：</strong>${escapeHtml(data.summary.transportationCost)}</p>`
+      : "";
     summaryCard.innerHTML = `
       <h3>行程總覽</h3>
+      ${transportationHtml}
       <p><strong>總預估花費：</strong>${escapeHtml(data.summary.totalEstimatedCost) || "-"}</p>
       <ul>${tipsHtml}</ul>
     `;
