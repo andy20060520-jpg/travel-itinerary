@@ -192,6 +192,10 @@ ${extraLines.join("\n")}
       "day": 1,
       "title": "當天主題（例如：抵達與市區漫遊）",
       "budgetNote": "當天預估花費說明",
+      "accommodation": {
+        "area": "當晚住宿的合理地點/區域（不需具體飯店名稱，例如：新宿區域）",
+        "estimatedCost": "當晚住宿預估花費（新台幣，含幣別文字，所有人合計）"
+      },
       "activities": [
         {
           "time": "09:00",
@@ -209,7 +213,7 @@ ${extraLines.join("\n")}
   }
 }
 
-每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。`;
+每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。每天請依行程動線標出合理的住宿地點/區域與預估費用（最後一天若當天直接返程、不過夜，accommodation 可設為 null）；所有住宿費用務必加總計入 summary.totalEstimatedCost。`;
 }
 
 function wait(ms, signal) {
@@ -482,9 +486,26 @@ function renderItinerary(data, { people, budget }) {
       })
       .join("");
 
+    let accommodationHtml = "";
+    if (day.accommodation && day.accommodation.area) {
+      const accMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        `${data.destination || ""} ${day.accommodation.area}`
+      )}`;
+      accommodationHtml = `
+        <div class="accommodation">
+          <span class="accommodation-icon">🏨</span>
+          <div class="detail">
+            <div class="name">住宿：${escapeHtml(day.accommodation.area)}</div>
+            <div class="cost">${escapeHtml(day.accommodation.estimatedCost)}</div>
+            <a class="maps-link" href="${accMapsUrl}" target="_blank" rel="noopener">📍 在 Google Maps 開啟</a>
+          </div>
+        </div>`;
+    }
+
     card.innerHTML = `
       <h3>Day ${escapeHtml(day.day)}：${escapeHtml(day.title)}</h3>
       <div class="day-budget">${escapeHtml(day.budgetNote)}</div>
+      ${accommodationHtml}
       ${activitiesHtml}
     `;
     itineraryEl.appendChild(card);
@@ -603,6 +624,10 @@ ${JSON.stringify(currentData)}
       "day": 1,
       "title": "當天主題",
       "budgetNote": "當天預估花費說明",
+      "accommodation": {
+        "area": "當晚住宿的合理地點/區域（不需具體飯店名稱，例如：新宿區域）",
+        "estimatedCost": "當晚住宿預估花費（新台幣，含幣別文字，所有人合計）"
+      },
       "activities": [
         {
           "time": "09:00",
@@ -614,10 +639,13 @@ ${JSON.stringify(currentData)}
     }
   ],
   "summary": {
+    "transportationCost": "往返交通費預估（新台幣，含幣別文字，所有人合計）",
     "totalEstimatedCost": "總預估花費（新台幣）",
     "tips": ["實用小提醒1", "實用小提醒2", "實用小提醒3"]
   }
-}`;
+}
+
+最後一天若當天直接返程、不過夜，accommodation 可設為 null；所有住宿費用務必加總計入 summary.totalEstimatedCost。`;
 }
 
 reviseBtn.addEventListener("click", async () => {
