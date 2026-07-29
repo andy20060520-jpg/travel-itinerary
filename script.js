@@ -212,29 +212,70 @@ ${extraLines.join("\n")}
 每天請安排 4 到 6 個活動（含用餐），花費需盡量貼近並控制在總預算內。`;
 }
 
-async function callGemini(prompt, apiKey, signal) {
-  const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
+function wait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
       },
-    }),
-    signal,
+      { once: true }
+    );
   });
+}
 
-  if (!res.ok) {
+function parseRetryDelayMs(errBody) {
+  try {
+    const data = JSON.parse(errBody);
+    const detail = (data?.error?.details || []).find((d) => d["@type"]?.includes("RetryInfo"));
+    const seconds = parseFloat(detail?.retryDelay);
+    if (!Number.isNaN(seconds)) return Math.min(seconds * 1000 + 500, 15000);
+  } catch {
+    // response wasn't JSON or didn't include retry info; fall back to default backoff
+  }
+  return null;
+}
+
+const MAX_RATE_LIMIT_RETRIES = 2;
+
+async function callGemini(prompt, apiKey, signal, onRetry) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+      signal,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    }
+
     const errBody = await res.text();
+
+    if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      const delayMs = parseRetryDelayMs(errBody) ?? (attempt + 1) * 4000;
+      onRetry?.(attempt + 1, MAX_RATE_LIMIT_RETRIES, delayMs);
+      await wait(delayMs, signal);
+      continue;
+    }
+
     throw new Error(`API 錯誤 (${res.status}): ${errBody}`);
   }
-
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  return text;
 }
 
 function parseItineraryJson(rawText) {
@@ -267,7 +308,9 @@ async function estimateBudgetLevels(destination, people, days, apiKey, flightCon
 {"low": 數字, "medium": 數字, "high": 數字}
 數字為新台幣整數，不含逗號或文字。`;
 
-  const rawText = await callGemini(prompt, apiKey);
+  const rawText = await callGemini(prompt, apiKey, undefined, (attempt, max, delayMs) => {
+    budgetLevelStatus.textContent = `Gemini 額度限制，${Math.ceil(delayMs / 1000)} 秒後自動重試（第 ${attempt}/${max} 次）...`;
+  });
   return parseItineraryJson(rawText);
 }
 
@@ -509,7 +552,9 @@ form.addEventListener("submit", async (e) => {
 
   try {
     const prompt = buildPrompt(payload);
-    const rawText = await callGemini(prompt, apiKey, activeController.signal);
+    const rawText = await callGemini(prompt, apiKey, activeController.signal, (attempt, max, delayMs) => {
+      statusEl.textContent = `Gemini 額度限制，${Math.ceil(delayMs / 1000)} 秒後自動重試（第 ${attempt}/${max} 次）...`;
+    });
     const data = parseItineraryJson(rawText);
     renderItinerary(data, payload);
     lastItineraryData = data;
@@ -596,7 +641,9 @@ reviseBtn.addEventListener("click", async () => {
 
   try {
     const prompt = buildRevisionPrompt(lastItineraryData, instruction);
-    const rawText = await callGemini(prompt, apiKey, activeController.signal);
+    const rawText = await callGemini(prompt, apiKey, activeController.signal, (attempt, max, delayMs) => {
+      statusEl.textContent = `Gemini 額度限制，${Math.ceil(delayMs / 1000)} 秒後自動重試（第 ${attempt}/${max} 次）...`;
+    });
     const data = parseItineraryJson(rawText);
     renderItinerary(data, lastPayload);
     lastItineraryData = data;
