@@ -16,6 +16,14 @@
 
 ## 啟用多人同步：設定 Firebase（免費，約 10 分鐘）
 
+**快速方式：** 在 Firebase 主控台建好專案後，打開右上角的 Cloud Shell（`>_` 圖示），執行：
+
+```bash
+curl -sL https://raw.githubusercontent.com/andy20060520-jpg/travel-itinerary/master/split-bill/setup-firebase.sh | bash
+```
+
+腳本會完成下面第 2～6 步，最後印出要貼進 `firebase-config.js` 的設定碼。也可以照下面的步驟手動設定：
+
 1. 到 <https://console.firebase.google.com> 用 Google 帳號登入 →「新增專案」，名稱隨意（例如 `split-bill`），Google Analytics 可關閉。
 2. 左側「建構 → Authentication」→「開始使用」→「Sign-in method」→ 啟用 **匿名**。
 3. 左側「建構 → Firestore Database」→「建立資料庫」→ 位置建議選 `europe-west`（歐洲旅遊較快）→ 以「正式版模式」建立。
