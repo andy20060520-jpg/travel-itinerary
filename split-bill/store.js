@@ -39,11 +39,11 @@ async function createFirebaseStore() {
   return {
     mode: "firebase",
 
-    async createTrip({ name, members }) {
+    async createTrip({ name, members, currency = "EUR" }) {
       const id = newId(20);
       await fs.setDoc(tripRef(id), {
         name,
-        currency: "EUR",
+        currency,
         members,
         createdAt: fs.serverTimestamp(),
       });
@@ -123,10 +123,10 @@ function createLocalStore() {
   return {
     mode: "local",
 
-    async createTrip({ name, members }) {
+    async createTrip({ name, members, currency = "EUR" }) {
       const id = newId(20);
       const data = read();
-      data.trips[id] = { name, currency: "EUR", members, createdAt: Date.now(), expenses: {} };
+      data.trips[id] = { name, currency, members, createdAt: Date.now(), expenses: {} };
       write(data);
       return id;
     },

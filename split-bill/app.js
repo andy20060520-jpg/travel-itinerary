@@ -4,12 +4,20 @@ import {
   computeBalances,
   computeSpending,
   settle,
-  parseEuroToCents,
-  formatEuro,
+  DEFAULT_CURRENCY,
+  CURRENCIES,
+  currencyDecimals,
+  parseAmount,
+  toInputValue,
+  formatMoney,
+  expenseCurrency,
+  groupByCurrency,
 } from "./settle.js";
+import { t, getLang, setLang, getLocale, applyStaticText } from "./i18n.js";
 
 const RECENT_KEY = "splitbill-recent";
 const ME_KEY_PREFIX = "splitbill-me-";
+const LAST_CURRENCY_PREFIX = "splitbill-cur-";
 const QR_LIB = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
 
 const appEl = document.getElementById("app");
@@ -21,7 +29,8 @@ let unsubscribers = [];
 let trip = null;
 let expenses = [];
 let currentTab = "expenses";
-let tripLoaded = false;
+// home / loading / trip / notfound：切換語言時用來決定要重畫哪個畫面。
+let view = "loading";
 
 // ---------- 小工具 ----------
 
@@ -56,11 +65,30 @@ function showBanner(message, kind = "error") {
 
 // 清掉錯誤訊息；單機模式則保留提醒。
 function resetBanner() {
-  if (store?.mode === "local") {
-    showBanner("目前是單機試用模式：資料只存在這支手機，不會和旅伴同步。設定 Firebase 後即可多人共用（見 README）。", "info");
-  } else {
-    showBanner("");
+  if (store?.mode === "local") showBanner(t("trialBanner"), "info");
+  else showBanner("");
+}
+
+function money(amount, currency) {
+  return formatMoney(amount, currency, getLocale());
+}
+
+function currencyName(code) {
+  try {
+    return new Intl.DisplayNames([getLocale()], { type: "currency" }).of(code);
+  } catch {
+    return code;
   }
+}
+
+function currencyOptions(selected) {
+  return CURRENCIES.map((c) =>
+    `<option value="${c}" ${c === selected ? "selected" : ""}>${c} – ${escapeHtml(currencyName(c))}</option>`
+  ).join("");
+}
+
+function tripCurrency() {
+  return trip?.currency || DEFAULT_CURRENCY;
 }
 
 function toMillis(ts) {
@@ -78,13 +106,12 @@ function todayIso() {
 
 function formatDateLabel(iso) {
   const [y, m, d] = iso.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  const week = "日一二三四五六"[date.getDay()];
-  return `${m} 月 ${d} 日（${week}）`;
+  return new Intl.DateTimeFormat(getLocale(), { month: "short", day: "numeric", weekday: "short" })
+    .format(new Date(y, m - 1, d));
 }
 
 function memberName(id) {
-  return trip?.members.find((m) => m.id === id)?.name ?? "（已移除）";
+  return trip?.members.find((m) => m.id === id)?.name ?? t("removedMember");
 }
 
 function getMe() {
@@ -92,13 +119,13 @@ function getMe() {
 }
 
 function rememberRecent(id, name) {
-  const recent = safeGet(RECENT_KEY, []).filter((t) => t.id !== id);
+  const recent = safeGet(RECENT_KEY, []).filter((r) => r.id !== id);
   recent.unshift({ id, name, openedAt: Date.now() });
   safeSet(RECENT_KEY, recent.slice(0, 20));
 }
 
 function forgetRecent(id) {
-  safeSet(RECENT_KEY, safeGet(RECENT_KEY, []).filter((t) => t.id !== id));
+  safeSet(RECENT_KEY, safeGet(RECENT_KEY, []).filter((r) => r.id !== id));
 }
 
 function shareUrl(tripId) {
@@ -112,7 +139,6 @@ function clearSubscriptions() {
   unsubscribers = [];
   trip = null;
   expenses = [];
-  tripLoaded = false;
 }
 
 function route() {
@@ -122,47 +148,59 @@ function route() {
   else renderHome();
 }
 
+function rerender() {
+  if (view === "home") renderHome();
+  else if (view === "trip") renderTrip();
+  else if (view === "notfound") renderNotFound();
+  else if (view === "loading") renderLoading();
+}
+
 // ---------- 首頁 ----------
 
 function renderHome() {
+  view = "home";
   const recent = safeGet(RECENT_KEY, []);
   appEl.innerHTML = `
     ${recent.length ? `
       <section class="card">
-        <h2>我的帳本</h2>
+        <h2>${t("myTrips")}</h2>
         <ul class="trip-list">
-          ${recent.map((t) => `
-            <li><a href="#/trip/${escapeHtml(t.id)}">
-              <span>${escapeHtml(t.name)}</span><span class="chev">›</span>
+          ${recent.map((r) => `
+            <li><a href="#/trip/${escapeHtml(r.id)}">
+              <span>${escapeHtml(r.name)}</span><span class="chev">›</span>
             </a></li>`).join("")}
         </ul>
       </section>` : ""}
 
     <section class="card">
-      <h2>建立新帳本</h2>
+      <h2>${t("createTitle")}</h2>
       <form id="create-form">
         <div class="field">
-          <label for="trip-name">旅程名稱</label>
-          <input id="trip-name" required maxlength="40" placeholder="例如：2026 巴黎・羅馬" />
+          <label for="trip-name">${t("tripName")}</label>
+          <input id="trip-name" required maxlength="40" placeholder="${escapeHtml(t("tripNamePh"))}" />
         </div>
         <div class="field">
-          <span class="label">旅伴（含自己）</span>
+          <span class="label">${t("companions")}</span>
           <div id="member-inputs" class="member-inputs">
-            ${memberInput("", "第 1 位，例如：我")}
-            ${memberInput("", "第 2 位")}
+            ${memberInput(t("memberPhFirst"))}
+            ${memberInput(t("memberPh", { n: 2 }))}
           </div>
-          <button type="button" id="add-member-input" class="text-btn">＋ 再加一位</button>
+          <button type="button" id="add-member-input" class="text-btn">${t("addAnother")}</button>
         </div>
-        <p class="hint-small">幣別固定為歐元（€）。建立後可以隨時再加人。</p>
-        <button type="submit" class="block">建立並開始記帳</button>
+        <div class="field">
+          <label for="trip-currency">${t("defaultCurrency")}</label>
+          <select id="trip-currency">${currencyOptions(DEFAULT_CURRENCY)}</select>
+        </div>
+        <p class="hint-small">${t("currencyHint")}</p>
+        <button type="submit" class="block">${t("createBtn")}</button>
       </form>
     </section>
 
     <section class="card">
-      <h2>加入朋友的帳本</h2>
+      <h2>${t("joinTitle")}</h2>
       <form id="join-form" class="inline-form">
-        <input id="join-input" required placeholder="貼上邀請連結" autocomplete="off" />
-        <button type="submit">加入</button>
+        <input id="join-input" required placeholder="${escapeHtml(t("joinPh"))}" autocomplete="off" />
+        <button type="submit">${t("joinBtn")}</button>
       </form>
     </section>
   `;
@@ -170,23 +208,24 @@ function renderHome() {
   const memberInputs = document.getElementById("member-inputs");
   document.getElementById("add-member-input").addEventListener("click", () => {
     const n = memberInputs.children.length + 1;
-    memberInputs.insertAdjacentHTML("beforeend", memberInput("", `第 ${n} 位`));
+    memberInputs.insertAdjacentHTML("beforeend", memberInput(t("memberPh", { n })));
     memberInputs.lastElementChild.focus();
   });
 
   document.getElementById("create-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = document.getElementById("trip-name").value.trim();
+    const currency = document.getElementById("trip-currency").value;
     const names = [...memberInputs.querySelectorAll("input")]
       .map((i) => i.value.trim())
       .filter(Boolean);
     if (!name) return;
     if (names.length < 2) {
-      showBanner("至少需要兩位旅伴才能分帳喔");
+      showBanner(t("errMinMembers"));
       return;
     }
     if (new Set(names).size !== names.length) {
-      showBanner("旅伴名字不能重複");
+      showBanner(t("errDupMembers"));
       return;
     }
     resetBanner();
@@ -194,12 +233,12 @@ function renderHome() {
     button.disabled = true;
     try {
       const members = names.map((n) => ({ id: newId(), name: n }));
-      const id = await store.createTrip({ name, members });
+      const id = await store.createTrip({ name, members, currency });
       // 建立的人預設是第一位。
       safeSet(ME_KEY_PREFIX + id, members[0].id);
       location.hash = `#/trip/${id}`;
     } catch (err) {
-      showBanner(`建立失敗：${err.message}`);
+      showBanner(t("errCreate", { msg: err.message }));
       button.disabled = false;
     }
   });
@@ -209,7 +248,7 @@ function renderHome() {
     const value = document.getElementById("join-input").value.trim();
     const match = value.match(/trip\/([A-Za-z0-9]+)/) || value.match(/^([A-Za-z0-9]{10,})$/);
     if (!match) {
-      showBanner("看不懂這個連結，請確認是完整的邀請連結");
+      showBanner(t("errJoinLink"));
       return;
     }
     resetBanner();
@@ -217,17 +256,33 @@ function renderHome() {
   });
 }
 
-function memberInput(value, placeholder) {
-  return `<input class="member-input" maxlength="20" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}" />`;
+function memberInput(placeholder) {
+  return `<input class="member-input" maxlength="20" placeholder="${escapeHtml(placeholder)}" />`;
 }
 
 // ---------- 帳本頁 ----------
 
+function renderLoading() {
+  view = "loading";
+  appEl.innerHTML = `<p class="muted center">${t("loadingTrip")}</p>`;
+}
+
+function renderNotFound() {
+  view = "notfound";
+  appEl.innerHTML = `
+    <section class="card center">
+      <h2>${t("notFound")}</h2>
+      <p class="muted">${t("notFoundHint")}</p>
+      <a href="#/" class="button">${t("backHome")}</a>
+    </section>`;
+}
+
 function openTrip(tripId) {
-  appEl.innerHTML = `<p class="muted center">載入帳本中…</p>`;
+  renderLoading();
+  let tripLoaded = false;
   const onError = (err) => {
     console.error(err);
-    showBanner(`無法讀取帳本：${err.message}`);
+    showBanner(t("errLoad", { msg: err.message }));
   };
   unsubscribers.push(
     store.subscribeTrip(tripId, (data) => {
@@ -235,12 +290,7 @@ function openTrip(tripId) {
       if (!data) {
         trip = null;
         forgetRecent(tripId);
-        appEl.innerHTML = `
-          <section class="card center">
-            <h2>找不到這個帳本</h2>
-            <p class="muted">連結可能不完整，或帳本是在另一支手機的「單機試用模式」建立的。</p>
-            <a href="#/" class="button">回首頁</a>
-          </section>`;
+        renderNotFound();
         return;
       }
       trip = data;
@@ -249,7 +299,7 @@ function openTrip(tripId) {
     }, onError),
     store.subscribeExpenses(tripId, (list) => {
       expenses = list;
-      if (trip) renderTrip();
+      if (tripLoaded && trip) renderTrip();
     }, onError)
   );
 }
@@ -260,47 +310,76 @@ function sortedExpenses() {
   );
 }
 
-function renderTrip() {
-  if (!tripLoaded || !trip) return;
-  const me = getMe();
-  const total = expenses
-    .filter((e) => e.type !== "transfer")
-    .reduce((sum, e) => sum + e.amount, 0);
-  const balances = computeBalances(trip.members, expenses);
+// 每個幣別各自計算差額：Map<幣別, { 成員ID: 差額 }>
+function balancesByCurrency() {
+  const result = new Map();
+  for (const [currency, list] of groupByCurrency(expenses, tripCurrency())) {
+    result.set(currency, computeBalances(trip.members, list));
+  }
+  return result;
+}
 
-  const myLine = me && me in balances
-    ? balances[me] > 0
-      ? `<span class="pos">別人共欠你 ${formatEuro(balances[me])}</span>`
-      : balances[me] < 0
-        ? `<span class="neg">你共欠別人 ${formatEuro(-balances[me])}</span>`
-        : `<span class="muted">你目前不欠也不被欠</span>`
-    : `<span class="muted">先選擇「我是誰」</span>`;
+function myBalanceLine(me, balances) {
+  if (!me || !trip.members.some((m) => m.id === me)) {
+    return `<span class="muted">${t("pickMe")}</span>`;
+  }
+  const owed = [];
+  const owe = [];
+  for (const [currency, b] of balances) {
+    const v = b[me] || 0;
+    if (v > 0) owed.push(money(v, currency));
+    else if (v < 0) owe.push(money(-v, currency));
+  }
+  if (!owed.length && !owe.length) return `<span class="muted">${t("settledMe")}</span>`;
+  const parts = [];
+  if (owed.length) parts.push(`<span class="pos">${t("owedToYou", { amounts: owed.join(t("listSep")) })}</span>`);
+  if (owe.length) parts.push(`<span class="neg">${t("youOwe", { amounts: owe.join(t("listSep")) })}</span>`);
+  return parts.join("<br />");
+}
+
+function renderTrip() {
+  if (!trip) return;
+  view = "trip";
+  const me = getMe();
+  const balances = balancesByCurrency();
+
+  const totals = [];
+  for (const [currency, list] of groupByCurrency(expenses.filter((e) => e.type !== "transfer"), tripCurrency())) {
+    totals.push(money(list.reduce((sum, e) => sum + e.amount, 0), currency));
+  }
+  if (!totals.length) totals.push(money(0, tripCurrency()));
 
   appEl.innerHTML = `
     <section class="card trip-head">
       <div class="trip-title-row">
         <h1>${escapeHtml(trip.name)}</h1>
-        <button type="button" data-action="share" class="secondary small">邀請</button>
+        <button type="button" data-action="share" class="secondary small">${t("invite")}</button>
       </div>
       <div class="stat-row">
-        <div class="stat"><span class="stat-label">總花費</span><span class="stat-value">${formatEuro(total)}</span></div>
-        <div class="stat"><span class="stat-label">人數</span><span class="stat-value">${trip.members.length}</span></div>
+        <div class="stat stat-wide">
+          <span class="stat-label">${t("totalSpent")}</span>
+          ${totals.map((x) => `<span class="stat-value">${x}</span>`).join("")}
+        </div>
+        <div class="stat">
+          <span class="stat-label">${t("people")}</span>
+          <span class="stat-value">${trip.members.length}</span>
+        </div>
       </div>
       <div class="me-row">
-        <label for="me-select">我是</label>
+        <label for="me-select">${t("iAm")}</label>
         <select id="me-select">
-          <option value="">— 選擇 —</option>
+          <option value="">${t("choose")}</option>
           ${trip.members.map((m) => `
             <option value="${m.id}" ${m.id === me ? "selected" : ""}>${escapeHtml(m.name)}</option>`).join("")}
         </select>
-        <span class="me-balance">${myLine}</span>
+        <span class="me-balance">${myBalanceLine(me, balances)}</span>
       </div>
     </section>
 
     <nav class="tabs">
-      ${tabButton("expenses", "支出")}
-      ${tabButton("settle", "結算")}
-      ${tabButton("members", "成員")}
+      ${tabButton("expenses", t("tabExpenses"))}
+      ${tabButton("settle", t("tabSettle"))}
+      ${tabButton("members", t("tabMembers"))}
     </nav>
 
     <section id="tab-body">
@@ -310,7 +389,7 @@ function renderTrip() {
     </section>
 
     ${currentTab === "expenses"
-      ? `<button type="button" class="fab" data-action="add-expense">＋ 新增支出</button>`
+      ? `<button type="button" class="fab" data-action="add-expense">${t("addExpenseFab")}</button>`
       : ""}
   `;
 
@@ -327,8 +406,8 @@ function tabButton(id, label) {
 function renderExpensesTab(me) {
   if (!expenses.length) {
     return `<div class="card empty">
-      <p>還沒有任何支出</p>
-      <p class="muted">按下方「新增支出」開始記第一筆。</p>
+      <p>${t("emptyTitle")}</p>
+      <p class="muted">${t("emptyHint")}</p>
     </div>`;
   }
   const groups = new Map();
@@ -345,68 +424,77 @@ function renderExpensesTab(me) {
 }
 
 function expenseItem(e, me) {
+  const currency = expenseCurrency(e);
   if (e.type === "transfer") {
     const to = Object.keys(e.shares)[0];
     return `<li data-action="edit-expense" data-id="${e.id}" class="transfer">
       <div class="exp-main">
-        <span class="exp-title">💸 ${escapeHtml(memberName(e.paidBy))} 還給 ${escapeHtml(memberName(to))}</span>
-        <span class="exp-sub">還款紀錄</span>
+        <span class="exp-title">💸 ${escapeHtml(t("transferTitle", { from: memberName(e.paidBy), to: memberName(to) }))}</span>
+        <span class="exp-sub">${t("transferSub")}</span>
       </div>
-      <span class="exp-amount">${formatEuro(e.amount)}</span>
+      <span class="exp-amount">${money(e.amount, currency)}</span>
     </li>`;
   }
   const count = Object.keys(e.shares).length;
-  const myShare = me && e.shares[me] ? `・我的份 ${formatEuro(e.shares[me])}` : "";
+  const myShare = me && e.shares[me] ? t("myShare", { amount: money(e.shares[me], currency) }) : "";
   return `<li data-action="edit-expense" data-id="${e.id}">
     <div class="exp-main">
       <span class="exp-title">${escapeHtml(e.title)}</span>
-      <span class="exp-sub">${escapeHtml(memberName(e.paidBy))} 付・${count} 人分${myShare}</span>
+      <span class="exp-sub">${escapeHtml(t("expenseSub", { payer: memberName(e.paidBy), n: count }))}${myShare}</span>
     </div>
-    <span class="exp-amount">${formatEuro(e.amount)}</span>
+    <span class="exp-amount">${money(e.amount, currency)}</span>
   </li>`;
 }
 
 function renderSettleTab(balances) {
-  const spending = computeSpending(trip.members, expenses);
-  const transfers = settle(balances);
-  return `
-    <div class="card">
-      <h2>該怎麼還</h2>
-      ${transfers.length ? `
-        <ul class="transfer-list">
-          ${transfers.map((t) => `
-            <li>
-              <div><strong>${escapeHtml(memberName(t.from))}</strong> → <strong>${escapeHtml(memberName(t.to))}</strong></div>
-              <div class="transfer-right">
-                <span class="exp-amount">${formatEuro(t.amount)}</span>
-                <button type="button" class="small secondary" data-action="mark-paid"
-                  data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}">已還</button>
-              </div>
-            </li>`).join("")}
-        </ul>
-        <p class="hint-small">已用最少的轉帳次數計算。實際還錢後按「已還」，會留下一筆還款紀錄。</p>`
-      : `<p class="muted">🎉 大家已經互不相欠</p>`}
-    </div>
+  if (!balances.size) {
+    return `<div class="card"><h2>${t("howToSettle")}</h2><p class="muted">${t("allSettled")}</p></div>`;
+  }
+  const multi = balances.size > 1;
+  const sections = [...balances].map(([currency, b]) => {
+    const list = expenses.filter((e) => expenseCurrency(e) === currency);
+    const spending = computeSpending(trip.members, list);
+    const transfers = settle(b);
+    const label = `${currency} – ${currencyName(currency)}`;
+    return `
+      <div class="card">
+        <h2>${multi ? t("howToSettleCur", { currency: escapeHtml(label) }) : t("howToSettle")}</h2>
+        ${transfers.length ? `
+          <ul class="transfer-list">
+            ${transfers.map((tr) => `
+              <li>
+                <div><strong>${escapeHtml(memberName(tr.from))}</strong> → <strong>${escapeHtml(memberName(tr.to))}</strong></div>
+                <div class="transfer-right">
+                  <span class="exp-amount">${money(tr.amount, currency)}</span>
+                  <button type="button" class="small secondary" data-action="mark-paid"
+                    data-from="${tr.from}" data-to="${tr.to}" data-amount="${tr.amount}" data-currency="${currency}">${t("markPaid")}</button>
+                </div>
+              </li>`).join("")}
+          </ul>`
+        : `<p class="muted">${t("allSettled")}</p>`}
+      </div>
 
-    <div class="card">
-      <h2>每人明細</h2>
-      <table class="balance-table">
-        <thead><tr><th>成員</th><th>花費</th><th>差額</th></tr></thead>
-        <tbody>
-          ${trip.members.map((m) => {
-            const b = balances[m.id] || 0;
-            const cls = b > 0 ? "pos" : b < 0 ? "neg" : "muted";
-            return `<tr>
-              <td>${escapeHtml(m.name)}</td>
-              <td>${formatEuro(spending[m.id] || 0)}</td>
-              <td class="${cls}">${b > 0 ? "+" : ""}${formatEuro(b)}</td>
-            </tr>`;
-          }).join("")}
-        </tbody>
-      </table>
-      <p class="hint-small">差額為正代表別人欠他，為負代表他要付給別人。</p>
-    </div>
-  `;
+      <div class="card">
+        <h2>${multi ? t("perPersonCur", { currency }) : t("perPerson")}</h2>
+        <table class="balance-table">
+          <thead><tr><th>${t("colMember")}</th><th>${t("colSpent")}</th><th>${t("colBalance")}</th></tr></thead>
+          <tbody>
+            ${trip.members.map((m) => {
+              const v = b[m.id] || 0;
+              const cls = v > 0 ? "pos" : v < 0 ? "neg" : "muted";
+              return `<tr>
+                <td>${escapeHtml(m.name)}</td>
+                <td>${money(spending[m.id] || 0, currency)}</td>
+                <td class="${cls}">${v > 0 ? "+" : ""}${money(v, currency)}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }).join("");
+  return `${sections}
+    <p class="hint-small settle-foot">${t("settleHint")}</p>
+    <p class="hint-small settle-foot">${t("balanceHint")}</p>`;
 }
 
 function renderMembersTab() {
@@ -417,27 +505,27 @@ function renderMembersTab() {
   }
   return `
     <div class="card">
-      <h2>成員</h2>
+      <h2>${t("membersTitle")}</h2>
       <ul class="member-list">
         ${trip.members.map((m) => `
           <li>
             <span>${escapeHtml(m.name)}</span>
             <span class="member-actions">
-              <button type="button" class="text-btn" data-action="rename-member" data-id="${m.id}">改名</button>
+              <button type="button" class="text-btn" data-action="rename-member" data-id="${m.id}">${t("rename")}</button>
               ${used.has(m.id)
-                ? `<span class="hint-small">有帳目，不能移除</span>`
-                : `<button type="button" class="danger-link" data-action="remove-member" data-id="${m.id}">移除</button>`}
+                ? `<span class="hint-small">${t("cantRemove")}</span>`
+                : `<button type="button" class="danger-link" data-action="remove-member" data-id="${m.id}">${t("remove")}</button>`}
             </span>
           </li>`).join("")}
       </ul>
       <form id="add-member-form" class="inline-form">
-        <input id="new-member" maxlength="20" placeholder="新成員名字" required />
-        <button type="submit">加入</button>
+        <input id="new-member" maxlength="20" placeholder="${escapeHtml(t("newMemberPh"))}" required />
+        <button type="submit">${t("add")}</button>
       </form>
     </div>
     <div class="card">
-      <button type="button" class="secondary block" data-action="leave">從「我的帳本」列表移除</button>
-      <p class="hint-small">只會從這支手機的列表移除，帳本本身和其他人的資料不受影響。</p>
+      <button type="button" class="secondary block" data-action="leave">${t("leave")}</button>
+      <p class="hint-small">${t("leaveHint")}</p>
     </div>
   `;
 }
@@ -466,7 +554,7 @@ appEl.addEventListener("click", async (e) => {
       location.hash = "#/";
     }
   } catch (err) {
-    showBanner(`操作失敗：${err.message}`);
+    showBanner(t("errAction", { msg: err.message }));
   }
 });
 
@@ -477,44 +565,45 @@ appEl.addEventListener("submit", async (e) => {
   const name = input.value.trim();
   if (!name) return;
   if (trip.members.some((m) => m.name === name)) {
-    showBanner("已經有同名的成員了");
+    showBanner(t("errDupName"));
     return;
   }
   resetBanner();
   try {
     await store.setMembers(trip.id, [...trip.members, { id: newId(), name }]);
   } catch (err) {
-    showBanner(`加入失敗：${err.message}`);
+    showBanner(t("errAdd", { msg: err.message }));
   }
 });
 
-async function markPaid({ from, to, amount }) {
-  const cents = Number(amount);
-  if (!confirm(`確認 ${memberName(from)} 已經還給 ${memberName(to)} ${formatEuro(cents)}？`)) return;
+async function markPaid({ from, to, amount, currency }) {
+  const value = Number(amount);
+  if (!confirm(t("confirmPaid", { from: memberName(from), to: memberName(to), amount: money(value, currency) }))) return;
   await store.saveExpense(trip.id, {
     type: "transfer",
-    title: "還款",
-    amount: cents,
+    title: "repayment",
+    amount: value,
+    currency,
     date: todayIso(),
     paidBy: from,
     splitMode: "custom",
-    shares: { [to]: cents },
+    shares: { [to]: value },
   });
 }
 
 async function renameMember(id) {
   const current = memberName(id);
-  const name = prompt("新的名字", current)?.trim();
+  const name = prompt(t("renamePrompt"), current)?.trim();
   if (!name || name === current) return;
   if (trip.members.some((m) => m.name === name)) {
-    showBanner("已經有同名的成員了");
+    showBanner(t("errDupName"));
     return;
   }
   await store.setMembers(trip.id, trip.members.map((m) => (m.id === id ? { ...m, name } : m)));
 }
 
 async function removeMember(id) {
-  if (!confirm(`確定移除 ${memberName(id)}？`)) return;
+  if (!confirm(t("confirmRemove", { name: memberName(id) }))) return;
   await store.setMembers(trip.id, trip.members.filter((m) => m.id !== id));
 }
 
@@ -524,6 +613,7 @@ const expenseDialog = document.getElementById("expense-dialog");
 const expenseForm = document.getElementById("expense-form");
 const expTitle = document.getElementById("exp-title");
 const expAmount = document.getElementById("exp-amount");
+const expCurrency = document.getElementById("exp-currency");
 const expDate = document.getElementById("exp-date");
 const expPayer = document.getElementById("exp-payer");
 const splitListEl = document.getElementById("split-list");
@@ -542,18 +632,35 @@ function setSplitMode(mode) {
   updateSplitHint();
 }
 
+// 依幣別調整輸入框：日圓等沒有小數的幣別用數字鍵盤。
+function applyCurrencyToInputs() {
+  const decimals = currencyDecimals(expCurrency.value);
+  const placeholder = decimals ? `0.${"0".repeat(decimals)}` : "0";
+  const mode = decimals ? "decimal" : "numeric";
+  for (const input of [expAmount, ...splitListEl.querySelectorAll(".split-amount")]) {
+    input.placeholder = placeholder;
+    input.inputMode = mode;
+  }
+}
+
 function openExpense(expense) {
   if (expense?.type === "transfer") {
-    if (confirm(`刪除這筆還款紀錄（${formatEuro(expense.amount)}）？`)) {
-      store.deleteExpense(trip.id, expense.id).catch((err) => showBanner(`刪除失敗：${err.message}`));
+    const amount = money(expense.amount, expenseCurrency(expense));
+    if (confirm(t("confirmDeleteTransfer", { amount }))) {
+      store.deleteExpense(trip.id, expense.id).catch((err) => showBanner(t("errDelete", { msg: err.message })));
     }
     return;
   }
   editingId = expense?.id ?? null;
   const me = getMe();
-  document.getElementById("expense-dialog-title").textContent = expense ? "編輯支出" : "新增支出";
+  const currency = expense
+    ? expenseCurrency(expense)
+    : safeGet(LAST_CURRENCY_PREFIX + trip.id, null) || tripCurrency();
+
+  document.getElementById("expense-dialog-title").textContent = t(expense ? "expenseEdit" : "expenseNew");
   expTitle.value = expense?.title ?? "";
-  expAmount.value = expense ? (expense.amount / 100).toFixed(2) : "";
+  expCurrency.innerHTML = currencyOptions(currency);
+  expAmount.value = expense ? toInputValue(expense.amount, currency) : "";
   expDate.value = expense?.date ?? todayIso();
   expPayer.innerHTML = trip.members
     .map((m) => `<option value="${m.id}">${escapeHtml(m.name)}</option>`)
@@ -563,16 +670,17 @@ function openExpense(expense) {
   const shares = expense?.shares ?? null;
   splitListEl.innerHTML = trip.members.map((m) => {
     const checked = shares ? m.id in shares : true;
-    const value = shares?.[m.id] != null ? (shares[m.id] / 100).toFixed(2) : "";
+    const value = shares?.[m.id] != null ? toInputValue(shares[m.id], currency) : "";
     return `<label class="split-row">
       <input type="checkbox" value="${m.id}" ${checked ? "checked" : ""} />
       <span class="split-name">${escapeHtml(m.name)}</span>
-      <input class="split-amount" data-id="${m.id}" inputmode="decimal" placeholder="0.00" value="${value}" />
+      <input class="split-amount" data-id="${m.id}" value="${value}" />
     </label>`;
   }).join("");
 
   expDelete.hidden = !expense;
   expError.hidden = true;
+  applyCurrencyToInputs();
   setSplitMode(expense?.splitMode ?? "equal");
   expenseDialog.showModal();
   if (!expense) expTitle.focus();
@@ -583,21 +691,25 @@ function selectedParticipants() {
 }
 
 function updateSplitHint() {
-  const total = parseEuroToCents(expAmount.value);
+  const currency = expCurrency.value || tripCurrency();
+  const total = parseAmount(expAmount.value, currency);
   const ids = selectedParticipants();
   if (splitMode === "equal") {
     splitHint.textContent = ids.length && total > 0
-      ? `${ids.length} 人平均，每人約 ${formatEuro(Math.round(total / ids.length))}`
-      : "勾選要一起分攤的人";
+      ? t("hintEqual", { n: ids.length, amount: money(Math.round(total / ids.length), currency) })
+      : t("hintPick");
     return;
   }
   let assigned = 0;
   for (const input of splitListEl.querySelectorAll(".split-amount")) {
-    const v = parseEuroToCents(input.value);
+    const v = parseAmount(input.value, currency);
     if (ids.includes(input.dataset.id) && v > 0) assigned += v;
   }
   const left = (total > 0 ? total : 0) - assigned;
-  splitHint.textContent = `已分配 ${formatEuro(assigned)}，${left >= 0 ? `還剩 ${formatEuro(left)}` : `超出 ${formatEuro(-left)}`}`;
+  const rest = left >= 0
+    ? t("hintLeft", { amount: money(left, currency) })
+    : t("hintOver", { amount: money(-left, currency) });
+  splitHint.textContent = t("hintAssigned", { assigned: money(assigned, currency), rest });
 }
 
 expenseDialog.addEventListener("click", (e) => {
@@ -611,15 +723,19 @@ expenseForm.addEventListener("input", (e) => {
   }
   updateSplitHint();
 });
+expCurrency.addEventListener("change", () => {
+  applyCurrencyToInputs();
+  updateSplitHint();
+});
 document.getElementById("exp-cancel").addEventListener("click", () => expenseDialog.close());
 
 expDelete.addEventListener("click", async () => {
-  if (!editingId || !confirm("確定刪除這筆支出？")) return;
+  if (!editingId || !confirm(t("confirmDelete"))) return;
   try {
     await store.deleteExpense(trip.id, editingId);
     expenseDialog.close();
   } catch (err) {
-    showExpenseError(`刪除失敗：${err.message}`);
+    showExpenseError(t("errDelete", { msg: err.message }));
   }
 });
 
@@ -630,12 +746,16 @@ function showExpenseError(message) {
 
 expenseForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const currency = expCurrency.value;
   const title = expTitle.value.trim();
-  const amount = parseEuroToCents(expAmount.value);
+  const amount = parseAmount(expAmount.value, currency);
   const ids = selectedParticipants();
-  if (!title) return showExpenseError("請填寫項目");
-  if (!(amount > 0)) return showExpenseError("金額格式不正確，例如 12.50");
-  if (!ids.length) return showExpenseError("至少要勾選一位分攤的人");
+  if (!title) return showExpenseError(t("errTitle"));
+  if (!(amount > 0)) {
+    const example = currencyDecimals(currency) ? "12.50" : "1500";
+    return showExpenseError(t("errAmount", { example }));
+  }
+  if (!ids.length) return showExpenseError(t("errNoOne"));
 
   let shares;
   if (splitMode === "equal") {
@@ -645,15 +765,15 @@ expenseForm.addEventListener("submit", async (e) => {
     let sum = 0;
     for (const id of ids) {
       const input = splitListEl.querySelector(`.split-amount[data-id="${id}"]`);
-      const v = input.value.trim() ? parseEuroToCents(input.value) : 0;
-      if (Number.isNaN(v)) return showExpenseError(`${memberName(id)} 的金額格式不正確`);
+      const v = input.value.trim() ? parseAmount(input.value, currency) : 0;
+      if (Number.isNaN(v)) return showExpenseError(t("errMemberAmount", { name: memberName(id) }));
       if (v > 0) shares[id] = v;
       sum += v;
     }
     if (sum !== amount) {
-      return showExpenseError(`各人金額加總 ${formatEuro(sum)}，與總額 ${formatEuro(amount)} 不符`);
+      return showExpenseError(t("errSumMismatch", { sum: money(sum, currency), total: money(amount, currency) }));
     }
-    if (!Object.keys(shares).length) return showExpenseError("至少要有一位分攤金額大於 0");
+    if (!Object.keys(shares).length) return showExpenseError(t("errAllZero"));
   }
 
   const saveBtn = document.getElementById("exp-save");
@@ -663,14 +783,16 @@ expenseForm.addEventListener("submit", async (e) => {
       type: "expense",
       title,
       amount,
+      currency,
       date: expDate.value || todayIso(),
       paidBy: expPayer.value,
       splitMode,
       shares,
     }, editingId);
+    safeSet(LAST_CURRENCY_PREFIX + trip.id, currency);
     expenseDialog.close();
   } catch (err) {
-    showExpenseError(`儲存失敗：${err.message}`);
+    showExpenseError(t("errSave", { msg: err.message }));
   } finally {
     saveBtn.disabled = false;
   }
@@ -689,7 +811,7 @@ function loadQrLib() {
     s.onload = resolve;
     s.onerror = () => {
       qrLibPromise = null;
-      reject(new Error("QR Code 載入失敗"));
+      reject(new Error("QR"));
     };
     document.head.appendChild(s);
   });
@@ -706,8 +828,8 @@ async function openShare() {
   try {
     await loadQrLib();
     new window.QRCode(qrEl, { text: url, width: 200, height: 200, correctLevel: window.QRCode.CorrectLevel.M });
-  } catch (err) {
-    qrEl.innerHTML = `<p class="muted">${escapeHtml(err.message)}，請改用下方連結。</p>`;
+  } catch {
+    qrEl.innerHTML = `<p class="muted">${t("qrFail")}</p>`;
   }
 }
 
@@ -719,33 +841,47 @@ document.getElementById("copy-link").addEventListener("click", async (e) => {
     input.select();
     document.execCommand("copy");
   }
-  e.target.textContent = "已複製";
-  setTimeout(() => (e.target.textContent = "複製"), 1500);
+  e.target.textContent = t("copied");
+  setTimeout(() => (e.target.textContent = t("copy")), 1500);
 });
 document.getElementById("native-share").addEventListener("click", () => {
-  navigator.share({ title: `旅行分帳：${trip.name}`, url: shareUrl(trip.id) }).catch(() => {});
+  navigator.share({ title: t("shareText", { name: trip.name }), url: shareUrl(trip.id) }).catch(() => {});
 });
 document.getElementById("share-close").addEventListener("click", () => shareDialog.close());
+
+// ---------- 語言 ----------
+
+const langToggle = document.getElementById("lang-toggle");
+
+function applyLanguage() {
+  applyStaticText();
+  langToggle.setAttribute("aria-label", t("langToggleLabel"));
+}
+
+langToggle.addEventListener("click", () => {
+  setLang(getLang() === "zh" ? "en" : "zh");
+  applyLanguage();
+  if (store) resetBanner();
+  rerender();
+});
 
 // ---------- 啟動 ----------
 
 async function main() {
+  applyLanguage();
   try {
     store = await createStore();
   } catch (err) {
     console.error(err);
     appEl.innerHTML = `<section class="card center">
-      <h2>無法連線</h2>
+      <h2>${t("connFail")}</h2>
       <p class="muted">${escapeHtml(err.message)}</p>
-      <p class="hint-small">請確認網路連線，以及 Firebase 已啟用「匿名登入」。</p>
-      <button type="button" onclick="location.reload()">重試</button>
+      <p class="hint-small">${t("connHint")}</p>
+      <button type="button" onclick="location.reload()">${t("retry")}</button>
     </section>`;
     return;
   }
-  if (store.mode === "local") {
-    modeBadge.textContent = "單機試用";
-    modeBadge.hidden = false;
-  }
+  if (store.mode === "local") modeBadge.hidden = false;
   resetBanner();
   window.addEventListener("hashchange", () => {
     resetBanner();

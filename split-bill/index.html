@@ -14,44 +14,52 @@
 </head>
 <body>
   <header class="topbar">
-    <a href="#/" class="brand">旅行分帳</a>
-    <span id="mode-badge" class="mode-badge" hidden></span>
+    <a href="#/" class="brand" data-i18n="appName">旅行分帳</a>
+    <span id="mode-badge" class="mode-badge" data-i18n="trialBadge" hidden></span>
+    <span class="spacer"></span>
+    <button type="button" id="lang-toggle" class="lang-toggle" data-i18n="langToggle">EN</button>
   </header>
 
   <div id="banner" class="banner" hidden></div>
 
   <main id="app" class="container">
-    <p class="muted center">載入中…</p>
+    <p class="muted center" data-i18n="loading">載入中…</p>
   </main>
 
   <!-- 新增 / 編輯支出 -->
   <dialog id="expense-dialog" class="sheet">
     <form id="expense-form" method="dialog">
-      <h2 id="expense-dialog-title">新增支出</h2>
+      <h2 id="expense-dialog-title"></h2>
       <div class="field">
-        <label for="exp-title">項目</label>
-        <input id="exp-title" required maxlength="60" placeholder="例如：巴黎晚餐" autocomplete="off" />
+        <label for="exp-title" data-i18n="fTitle"></label>
+        <input id="exp-title" required maxlength="60" data-i18n-placeholder="fTitlePh" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <div class="field amount-field">
+          <label for="exp-amount" data-i18n="fAmount"></label>
+          <input id="exp-amount" required inputmode="decimal" autocomplete="off" />
+        </div>
+        <div class="field currency-field">
+          <label for="exp-currency" data-i18n="fCurrency"></label>
+          <select id="exp-currency"></select>
+        </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label for="exp-amount">金額（€）</label>
-          <input id="exp-amount" required inputmode="decimal" placeholder="0.00" autocomplete="off" />
-        </div>
-        <div class="field">
-          <label for="exp-date">日期</label>
+          <label for="exp-date" data-i18n="fDate"></label>
           <input id="exp-date" type="date" required />
         </div>
-      </div>
-      <div class="field">
-        <label for="exp-payer">誰付的錢</label>
-        <select id="exp-payer" required></select>
+        <div class="field">
+          <label for="exp-payer" data-i18n="fPayer"></label>
+          <select id="exp-payer" required></select>
+        </div>
       </div>
       <div class="field">
         <div class="label-row">
-          <span class="label">分給誰</span>
+          <span class="label" data-i18n="fSplit"></span>
           <div class="segmented">
-            <button type="button" data-split-mode="equal" class="active">平均分</button>
-            <button type="button" data-split-mode="custom">自訂金額</button>
+            <button type="button" data-split-mode="equal" class="active" data-i18n="equal"></button>
+            <button type="button" data-split-mode="custom" data-i18n="custom"></button>
           </div>
         </div>
         <div id="split-list" class="split-list"></div>
@@ -59,27 +67,27 @@
       </div>
       <p id="expense-error" class="error" hidden></p>
       <div class="actions">
-        <button type="button" id="exp-delete" class="danger-link" hidden>刪除</button>
+        <button type="button" id="exp-delete" class="danger-link" data-i18n="delete" hidden></button>
         <span class="spacer"></span>
-        <button type="button" id="exp-cancel" class="secondary">取消</button>
-        <button type="submit" id="exp-save">儲存</button>
+        <button type="button" id="exp-cancel" class="secondary" data-i18n="cancel"></button>
+        <button type="submit" id="exp-save" data-i18n="save"></button>
       </div>
     </form>
   </dialog>
 
   <!-- 分享 -->
   <dialog id="share-dialog" class="sheet">
-    <h2>邀請旅伴</h2>
-    <p class="muted">用手機掃描 QR Code，或把連結傳到群組。打開連結的人都能一起記帳。</p>
+    <h2 data-i18n="shareTitle"></h2>
+    <p class="muted" data-i18n="shareHint"></p>
     <div id="qr" class="qr"></div>
     <div class="share-link">
       <input id="share-url" readonly />
-      <button type="button" id="copy-link">複製</button>
+      <button type="button" id="copy-link" data-i18n="copy"></button>
     </div>
     <div class="actions">
-      <button type="button" id="native-share" class="secondary" hidden>用其他 App 分享</button>
+      <button type="button" id="native-share" class="secondary" data-i18n="shareOther" hidden></button>
       <span class="spacer"></span>
-      <button type="button" id="share-close">完成</button>
+      <button type="button" id="share-close" data-i18n="done"></button>
     </div>
   </dialog>
 
