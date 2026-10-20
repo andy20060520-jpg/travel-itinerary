@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b7285" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="旅行分帳" />
+<title>旅行分帳</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="brand">旅行分帳</a>
+    <span id="mode-badge" class="mode-badge" hidden></span>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main id="app" class="container">
+    <p class="muted center">載入中…</p>
+  </main>
+
+  <!-- 新增 / 編輯支出 -->
+  <dialog id="expense-dialog" class="sheet">
+    <form id="expense-form" method="dialog">
+      <h2 id="expense-dialog-title">新增支出</h2>
+      <div class="field">
+        <label for="exp-title">項目</label>
+        <input id="exp-title" required maxlength="60" placeholder="例如：巴黎晚餐" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="exp-amount">金額（€）</label>
+          <input id="exp-amount" required inputmode="decimal" placeholder="0.00" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="exp-date">日期</label>
+          <input id="exp-date" type="date" required />
+        </div>
+      </div>
+      <div class="field">
+        <label for="exp-payer">誰付的錢</label>
+        <select id="exp-payer" required></select>
+      </div>
+      <div class="field">
+        <div class="label-row">
+          <span class="label">分給誰</span>
+          <div class="segmented">
+            <button type="button" data-split-mode="equal" class="active">平均分</button>
+            <button type="button" data-split-mode="custom">自訂金額</button>
+          </div>
+        </div>
+        <div id="split-list" class="split-list"></div>
+        <p id="split-hint" class="hint-small"></p>
+      </div>
+      <p id="expense-error" class="error" hidden></p>
+      <div class="actions">
+        <button type="button" id="exp-delete" class="danger-link" hidden>刪除</button>
+        <span class="spacer"></span>
+        <button type="button" id="exp-cancel" class="secondary">取消</button>
+        <button type="submit" id="exp-save">儲存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 分享 -->
+  <dialog id="share-dialog" class="sheet">
+    <h2>邀請旅伴</h2>
+    <p class="muted">用手機掃描 QR Code，或把連結傳到群組。打開連結的人都能一起記帳。</p>
+    <div id="qr" class="qr"></div>
+    <div class="share-link">
+      <input id="share-url" readonly />
+      <button type="button" id="copy-link">複製</button>
+    </div>
+    <div class="actions">
+      <button type="button" id="native-share" class="secondary" hidden>用其他 App 分享</button>
+      <span class="spacer"></span>
+      <button type="button" id="share-close">完成</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,575 @@
+:root {
+  --primary: #0b7285;
+  --primary-dark: #085467;
+  --accent: #ff922b;
+  --bg: #f4f9fb;
+  --card-bg: #ffffff;
+  --text: #1b1f23;
+  --muted: #6b7280;
+  --border: #e2e8f0;
+  --pos: #2b8a3e;
+  --neg: #c92a2a;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 {
+  margin: 0;
+}
+
+h2 {
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+}
+
+.brand {
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.mode-badge {
+  font-size: 12px;
+  background: var(--accent);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.banner {
+  margin: 12px auto 0;
+  max-width: 640px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  width: calc(100% - 32px);
+}
+
+.banner.error {
+  background: #fff5f5;
+  color: var(--neg);
+  border: 1px solid #ffc9c9;
+}
+
+.banner.info {
+  background: #fff4e6;
+  color: #a85500;
+  border: 1px solid #ffd8a8;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.center {
+  text-align: center;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.pos {
+  color: var(--pos);
+}
+
+.neg {
+  color: var(--neg);
+}
+
+.hint-small {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.error {
+  color: var(--neg);
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+/* ---------- 表單 ---------- */
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+label,
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+input,
+select {
+  width: 100%;
+  font: inherit;
+  font-size: 16px; /* 避免 iOS 聚焦時自動放大 */
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  color: var(--text);
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+button,
+.button {
+  font: inherit;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: white;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+button.secondary {
+  background: #e6f4f6;
+  color: var(--primary-dark);
+}
+
+button.small {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+button.block {
+  width: 100%;
+}
+
+.text-btn {
+  background: none;
+  color: var(--primary);
+  padding: 6px 0;
+}
+
+.danger-link {
+  background: none;
+  color: var(--neg);
+  padding: 6px 0;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+}
+
+.inline-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-inputs {
+  display: grid;
+  gap: 8px;
+}
+
+/* ---------- 首頁 ---------- */
+
+.trip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trip-list a {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.trip-list li:last-child a {
+  border-bottom: none;
+}
+
+.chev {
+  color: var(--muted);
+}
+
+/* ---------- 帳本頁 ---------- */
+
+.trip-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trip-title-row h1 {
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.stat-row {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.stat {
+  flex: 1;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.me-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.me-row label {
+  margin: 0;
+}
+
+.me-row select {
+  width: auto;
+  padding: 6px 10px;
+}
+
+.me-balance {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex;
+  background: #e6eef1;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 14px;
+}
+
+.tabs button {
+  flex: 1;
+  background: none;
+  color: var(--muted);
+  padding: 8px;
+}
+
+.tabs button.active {
+  background: white;
+  color: var(--primary-dark);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.date-head {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 4px 4px 8px;
+}
+
+.expense-list,
+.transfer-list,
+.member-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.expense-list {
+  padding: 0 16px;
+}
+
+.expense-list li,
+.transfer-list li,
+.member-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.expense-list li {
+  cursor: pointer;
+}
+
+.expense-list li:last-child,
+.transfer-list li:last-child,
+.member-list li:last-child {
+  border-bottom: none;
+}
+
+.exp-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.exp-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.exp-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.exp-amount {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.transfer .exp-title {
+  font-weight: 500;
+}
+
+.transfer .exp-amount {
+  color: var(--muted);
+}
+
+.transfer-right,
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.balance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.balance-table th,
+.balance-table td {
+  text-align: right;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.balance-table th:first-child,
+.balance-table td:first-child {
+  text-align: left;
+}
+
+.balance-table th {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.empty p {
+  margin: 4px 0;
+}
+
+.fab {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 6px 18px rgb(255 146 43 / 0.4);
+  font-size: 16px;
+  z-index: 4;
+}
+
+/* ---------- 對話框 ---------- */
+
+dialog.sheet {
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  border: none;
+  border-radius: 18px;
+  padding: 20px;
+  color: var(--text);
+}
+
+dialog.sheet::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+dialog.sheet h2 {
+  font-size: 19px;
+  margin-bottom: 16px;
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.label-row .label {
+  margin: 0;
+}
+
+.segmented {
+  display: flex;
+  background: #e6eef1;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.segmented button {
+  background: none;
+  color: var(--muted);
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.segmented button.active {
+  background: white;
+  color: var(--primary-dark);
+}
+
+.split-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.split-row:last-child {
+  border-bottom: none;
+}
+
+.split-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--primary);
+}
+
+.split-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.split-amount {
+  display: none;
+  width: 110px;
+  padding: 6px 10px;
+  text-align: right;
+}
+
+.split-list.custom .split-amount {
+  display: block;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.qr {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  min-height: 200px;
+  align-items: center;
+}
+
+.share-link {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
