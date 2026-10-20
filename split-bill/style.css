@@ -16,6 +16,11 @@
   box-sizing: border-box;
 }
 
+/* 下面的 button 等規則會蓋掉 hidden 屬性，這裡強制隱藏。 */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
@@ -49,6 +54,18 @@ h2 {
   text-decoration: none;
   font-weight: 700;
   font-size: 18px;
+}
+
+.lang-toggle {
+  background: rgb(255 255 255 / 0.18);
+  color: white;
+  padding: 6px 12px;
+  font-size: 14px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+}
+
+.topbar .spacer {
+  flex: 1;
 }
 
 .mode-badge {
@@ -136,6 +153,14 @@ h2 {
 .field-row .field {
   flex: 1;
   min-width: 0;
+}
+
+.field-row .currency-field {
+  flex: 1.3;
+}
+
+.settle-foot {
+  margin: 0 4px 8px;
 }
 
 label,
@@ -275,6 +300,10 @@ button.block {
   padding: 10px 12px;
 }
 
+.stat-wide {
+  flex: 2;
+}
+
 .stat-label {
   display: block;
   font-size: 12px;
@@ -282,6 +311,7 @@ button.block {
 }
 
 .stat-value {
+  display: block;
   font-size: 20px;
   font-weight: 700;
 }

@@ -1,9 +1,11 @@
-# 旅行分帳（歐元）
+# 旅行分帳 Trip Split
 
 多支手機一起記帳、即時同步、自動算出「誰該轉給誰多少錢」的網頁 App。
 
 - 一人建立帳本，用連結或 QR Code 邀請旅伴，不需要註冊帳號
-- 支出可平均分或自訂每人金額，金額以歐元（€）計算
+- 支出可平均分或自訂每人金額
+- 多幣別：預設歐元，每筆支出可選不同幣別（TWD、JPY、USD…），各幣別分開結算，不換算匯率
+- 中文 / English 介面，右上角一鍵切換
 - 用最少的轉帳次數結清，還完錢可按「已還」留下紀錄
 - 沒有網路時也能記帳，連上網後自動同步
 - 可「加入主畫面」，用起來像 App
@@ -49,6 +51,7 @@ curl -sL https://raw.githubusercontent.com/andy20060520-jpg/travel-itinerary/mas
 | `index.html` / `style.css` | 介面 |
 | `app.js` | 畫面與操作邏輯 |
 | `store.js` | 資料層：Firestore 即時同步，或 localStorage 單機試用 |
-| `settle.js` | 分帳計算（金額以歐分整數處理，避免小數誤差） |
+| `settle.js` | 分帳與幣別計算（金額以各幣別最小單位的整數處理，避免小數誤差） |
+| `i18n.js` | 中英文介面文字 |
 | `firebase-config.js` | 貼上你的 Firebase 設定 |
 | `firestore.rules` | 資料庫安全規則 |
