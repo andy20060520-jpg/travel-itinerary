@@ -72,7 +72,7 @@ export function settle(balances) {
 export const DEFAULT_CURRENCY = "EUR";
 
 export const CURRENCIES = [
-  "EUR", "TWD", "USD", "GBP", "CHF", "JPY", "KRW", "CZK", "HUF", "PLN",
+  "EUR", "TWD", "USD", "GBP", "CHF", "ALL", "JPY", "KRW", "CZK", "HUF", "PLN",
   "SEK", "NOK", "DKK", "ISK", "TRY", "HKD", "CNY", "THB", "SGD", "AUD", "CAD",
 ];
 
