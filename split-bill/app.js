@@ -888,7 +888,7 @@ async function main() {
     console.error(err);
     appEl.innerHTML = `<section class="card center">
       <h2>${t("connFail")}</h2>
-      <p class="muted">${escapeHtml(err.message)}</p>
+      <p class="muted">${err.message === "timeout" ? t("connTimeout") : escapeHtml(err.message)}</p>
       <p class="hint-small">${t("connHint")}</p>
       <button type="button" onclick="location.reload()">${t("retry")}</button>
     </section>`;

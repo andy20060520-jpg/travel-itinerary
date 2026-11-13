@@ -126,7 +126,8 @@ const messages = {
     shareText: "旅行分帳：{name}",
 
     connFail: "無法連線",
-    connHint: "請確認網路連線，以及 Firebase 已啟用「匿名登入」。",
+    connTimeout: "連線逾時",
+    connHint: "請確認網路連線。如果是在 LINE 等 App 裡打開，請點右下角「⋯」選「用預設瀏覽器開啟」，或把連結貼到 Safari / Chrome。",
     retry: "重試",
   },
 
@@ -253,7 +254,8 @@ const messages = {
     shareText: "Trip Split: {name}",
 
     connFail: "Can't connect",
-    connHint: "Check your connection, and that Anonymous sign-in is enabled in Firebase.",
+    connTimeout: "Connection timed out",
+    connHint: "Check your connection. If you opened this inside an app like LINE, open the link in Safari or Chrome instead.",
     retry: "Retry",
   },
 };
