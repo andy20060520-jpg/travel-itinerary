@@ -53,7 +53,13 @@ async function createFirebaseStore() {
     subscribeTrip(tripId, onData, onError) {
       return fs.onSnapshot(
         tripRef(tripId),
-        (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+        { includeMetadataChanges: true },
+        (snap) => {
+          // 帳本不在手機快取、又還沒連上伺服器時，Firestore 會先從快取回報「不存在」。
+          // 這時還不能斷定帳本不存在，要等伺服器確認。
+          if (!snap.exists() && snap.metadata.fromCache) return;
+          onData(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        },
         onError
       );
     },
