@@ -34,7 +34,9 @@ const messages = {
     loadingTrip: "載入帳本中…",
     errLoad: "無法讀取帳本：{msg}",
     notFound: "找不到這個帳本",
-    notFoundHint: "連結可能不完整，或帳本是在另一支手機的「單機試用模式」建立的。",
+    notFoundHint: "請確認連結是完整的。如果帳本是在「單機試用模式」建立的，它只存在建立它的那支手機上。",
+    tripIdLabel: "帳本 ID：{id}",
+    slowHint: "連線比較慢⋯如果一直停在這裡，請檢查網路；在 LINE 等 App 裡打開的話，試試改用 Safari 或 Chrome 開啟。",
     backHome: "回首頁",
     invite: "邀請",
     totalSpent: "總花費",
@@ -124,7 +126,8 @@ const messages = {
     shareText: "旅行分帳：{name}",
 
     connFail: "無法連線",
-    connHint: "請確認網路連線，以及 Firebase 已啟用「匿名登入」。",
+    connTimeout: "連線逾時",
+    connHint: "請確認網路連線。如果是在 LINE 等 App 裡打開，請點右下角「⋯」選「用預設瀏覽器開啟」，或把連結貼到 Safari / Chrome。",
     retry: "重試",
   },
 
@@ -159,7 +162,9 @@ const messages = {
     loadingTrip: "Loading trip…",
     errLoad: "Couldn't load trip: {msg}",
     notFound: "Trip not found",
-    notFoundHint: "The link may be incomplete, or the trip was created in trial mode on another phone.",
+    notFoundHint: "Check that the link is complete. A trip created in trial mode only exists on the phone that created it.",
+    tripIdLabel: "Trip ID: {id}",
+    slowHint: "This is taking a while… If it stays here, check your connection. If you opened it inside an app like LINE, try Safari or Chrome instead.",
     backHome: "Back to home",
     invite: "Invite",
     totalSpent: "Total spent",
@@ -249,7 +254,8 @@ const messages = {
     shareText: "Trip Split: {name}",
 
     connFail: "Can't connect",
-    connHint: "Check your connection, and that Anonymous sign-in is enabled in Firebase.",
+    connTimeout: "Connection timed out",
+    connHint: "Check your connection. If you opened this inside an app like LINE, open the link in Safari or Chrome instead.",
     retry: "Retry",
   },
 };

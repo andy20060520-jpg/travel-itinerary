@@ -11,25 +11,76 @@ export function newId(length = 10) {
   return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 }
 
+const CONNECT_TIMEOUT_MS = 20000;
+
 export async function createStore() {
-  if (firebaseConfig.apiKey) return createFirebaseStore();
-  return createLocalStore();
+  if (!firebaseConfig.apiKey) return createLocalStore();
+  // 連線卡住時不要永遠停在「載入中」，逾時就讓畫面顯示錯誤。
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), CONNECT_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([createFirebaseStore(), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// LINE 等 App 的內建瀏覽器有時 IndexedDB 開不起來也不回應，Firebase 會一直等下去。
+// 先試開一次，幾秒內沒成功就當作不能用。
+function indexedDbWorks(timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeoutMs);
+    const done = (ok) => {
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    try {
+      const req = indexedDB.open("splitbill-probe");
+      req.onsuccess = () => {
+        req.result.close();
+        done(true);
+      };
+      req.onerror = () => done(false);
+      req.onblocked = () => done(false);
+    } catch {
+      done(false);
+    }
+  });
 }
 
 async function createFirebaseStore() {
-  const [{ initializeApp }, auth, fs] = await Promise.all([
+  const [{ initializeApp }, auth, fs, persistent] = await Promise.all([
     import(`${FIREBASE_BASE}/firebase-app.js`),
     import(`${FIREBASE_BASE}/firebase-auth.js`),
     import(`${FIREBASE_BASE}/firebase-firestore.js`),
+    indexedDbWorks(),
   ]);
 
+  if (!persistent) {
+    // Firebase 內部的使用統計（heartbeat）也會開 IndexedDB 並等它回應，登入時會跟著卡住。
+    // 把 IndexedDB 藏起來，Firebase 就會直接略過它。
+    try {
+      Object.defineProperty(window, "indexedDB", { value: undefined, configurable: true });
+    } catch {
+      // 藏不起來就算了，最後還有連線逾時會顯示錯誤。
+    }
+  }
+
   const app = initializeApp(firebaseConfig);
-  // 離線快取：在國外沒網路時也能記帳，連上網後自動上傳。
+  // 離線快取：在國外沒網路時也能記帳，連上網後自動上傳。IndexedDB 不能用時改存在記憶體。
   const db = fs.initializeFirestore(app, {
-    localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
+    localCache: persistent
+      ? fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() })
+      : fs.memoryLocalCache(),
   });
   // 已登入過的手機沿用原本的匿名身分，離線時也能直接使用。
-  const authInstance = auth.getAuth(app);
+  const authInstance = auth.initializeAuth(app, {
+    persistence: persistent
+      ? [auth.indexedDBLocalPersistence, auth.browserLocalPersistence]
+      : [auth.browserLocalPersistence, auth.inMemoryPersistence],
+  });
   await authInstance.authStateReady();
   if (!authInstance.currentUser) await auth.signInAnonymously(authInstance);
 
@@ -53,7 +104,13 @@ async function createFirebaseStore() {
     subscribeTrip(tripId, onData, onError) {
       return fs.onSnapshot(
         tripRef(tripId),
-        (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+        { includeMetadataChanges: true },
+        (snap) => {
+          // 帳本不在手機快取、又還沒連上伺服器時，Firestore 會先從快取回報「不存在」。
+          // 這時還不能斷定帳本不存在，要等伺服器確認。
+          if (!snap.exists() && snap.metadata.fromCache) return;
+          onData(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        },
         onError
       );
     },

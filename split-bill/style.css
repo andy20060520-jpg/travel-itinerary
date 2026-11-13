@@ -603,3 +603,7 @@ dialog.sheet h2 {
   min-width: 0;
   font-size: 13px;
 }
+
+.trip-id {
+  word-break: break-all;
+}

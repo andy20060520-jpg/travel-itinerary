@@ -31,6 +31,9 @@ let expenses = [];
 let currentTab = "expenses";
 // home / loading / trip / notfound：切換語言時用來決定要重畫哪個畫面。
 let view = "loading";
+// 目前打開的帳本 ID，顯示在「找不到帳本」頁面方便比對連結。
+let openedTripId = "";
+let loadingSlow = false;
 
 // ---------- 小工具 ----------
 
@@ -264,7 +267,8 @@ function memberInput(placeholder) {
 
 function renderLoading() {
   view = "loading";
-  appEl.innerHTML = `<p class="muted center">${t("loadingTrip")}</p>`;
+  appEl.innerHTML = `<p class="muted center">${t("loadingTrip")}</p>
+    ${loadingSlow ? `<p class="hint-small center">${t("slowHint")}</p>` : ""}`;
 }
 
 function renderNotFound() {
@@ -273,13 +277,22 @@ function renderNotFound() {
     <section class="card center">
       <h2>${t("notFound")}</h2>
       <p class="muted">${t("notFoundHint")}</p>
+      <p class="hint-small trip-id">${t("tripIdLabel", { id: escapeHtml(openedTripId) })}</p>
       <a href="#/" class="button">${t("backHome")}</a>
     </section>`;
 }
 
 function openTrip(tripId) {
+  openedTripId = tripId;
+  loadingSlow = false;
   renderLoading();
   let tripLoaded = false;
+  // 連不上伺服器時會一直停在載入中，過一陣子提示可能的原因。
+  const slowTimer = setTimeout(() => {
+    loadingSlow = true;
+    if (view === "loading") renderLoading();
+  }, 10000);
+  unsubscribers.push(() => clearTimeout(slowTimer));
   const onError = (err) => {
     console.error(err);
     showBanner(t("errLoad", { msg: err.message }));
@@ -875,7 +888,7 @@ async function main() {
     console.error(err);
     appEl.innerHTML = `<section class="card center">
       <h2>${t("connFail")}</h2>
-      <p class="muted">${escapeHtml(err.message)}</p>
+      <p class="muted">${err.message === "timeout" ? t("connTimeout") : escapeHtml(err.message)}</p>
       <p class="hint-small">${t("connHint")}</p>
       <button type="button" onclick="location.reload()">${t("retry")}</button>
     </section>`;
